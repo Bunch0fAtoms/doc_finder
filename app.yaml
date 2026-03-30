@@ -1,0 +1,29 @@
+command:
+  - uvicorn
+  - backend.main:app
+  - --host
+  - "0.0.0.0"
+  - --port
+  - "8000"
+
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+
+  - name: VS_ENDPOINT_NAME
+    value: doc_finder_vs_endpoint
+
+  - name: VS_INDEX_NAME
+    value: morgan_stable_classic_6df0yw_catalog.doc_finder.doc_summaries_index
+
+  - name: CATALOG
+    value: morgan_stable_classic_6df0yw_catalog
+
+  - name: SCHEMA
+    value: doc_finder
+
+  - name: VOLUME
+    value: raw_docs
+
+  - name: FOUNDATION_MODEL
+    value: databricks-claude-sonnet-4-6
