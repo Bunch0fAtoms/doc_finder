@@ -131,3 +131,4 @@ User types message
 - Wrap in Databricks Asset Bundles (DABs) for deployment management
 - Automated pipeline trigger when new PDFs are uploaded to the volume
 - Scale testing at 1M documents
+- MLflow experiment tracking: log user inputs and agent responses, with LLM judges evaluating response quality (relevance, correctness, groundedness)
