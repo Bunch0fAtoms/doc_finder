@@ -43,18 +43,29 @@ async def chat_endpoint(req: ChatRequest):
 @app.get("/api/docs/{filename}")
 async def get_document(filename: str):
     """Serve a PDF from the Unity Catalog volume."""
+    import requests
+    from databricks.sdk.core import Config
+
     try:
-        w = WorkspaceClient()
+        cfg = Config()
+        headers = cfg.authenticate()
         file_path = f"{VOLUME_PATH}/{filename}"
-        resp = w.files.download(file_path)
-        content = resp.read()
+        url = f"{cfg.host}/api/2.0/fs/files{file_path}"
+        resp = requests.get(url, headers=headers)
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail=f"Failed to download {filename}: {resp.text[:200]}",
+            )
         return Response(
-            content=content,
+            content=resp.content,
             media_type="application/pdf",
             headers={"Content-Disposition": f'inline; filename="{filename}"'},
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Document not found: {filename}")
+        raise HTTPException(status_code=500, detail=f"Error serving {filename}: {str(e)}")
 
 
 # Serve React static files (built frontend)
