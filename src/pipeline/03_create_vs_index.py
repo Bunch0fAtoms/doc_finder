@@ -1,31 +1,28 @@
-# pipeline/03_create_vs_index.py
+# src/pipeline/03_create_vs_index.py
 """
 Create Vector Search endpoint and Delta Sync index for document summaries.
 
-Configuration via environment variables (or defaults to dev):
-    DATABRICKS_HOST, DATABRICKS_PROFILE, CATALOG, SCHEMA,
-    VS_ENDPOINT_NAME, EMBEDDING_MODEL
+DABs:  databricks bundle run data_pipeline (runs all 3 steps)
+Local: python src/pipeline/03_create_vs_index.py --catalog=X --schema=X --vs-endpoint-name=X --embedding-model=X
 """
-import os
 from databricks.vector_search.client import VectorSearchClient
 from databricks.sdk.core import Config
+from _config import parse_config
 
-CATALOG = os.getenv("CATALOG", "morgan_stable_classic_6df0yw_catalog")
-SCHEMA = os.getenv("SCHEMA", "doc_finder")
-VS_ENDPOINT_NAME = os.getenv("VS_ENDPOINT_NAME", "doc_finder_vs_endpoint")
+cfg = parse_config("catalog", "schema", "vs_endpoint_name", "embedding_model")
+CATALOG = cfg["catalog"]
+SCHEMA = cfg["schema"]
+VS_ENDPOINT_NAME = cfg["vs_endpoint_name"]
 VS_INDEX_NAME = f"{CATALOG}.{SCHEMA}.doc_summaries_index"
 SOURCE_TABLE = f"{CATALOG}.{SCHEMA}.doc_summaries"
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "databricks-gte-large-en")
+EMBEDDING_MODEL = cfg["embedding_model"]
 
 
-def run():
-    cfg = Config(
-        host=os.getenv("DATABRICKS_HOST", "https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com"),
-        profile=os.getenv("DATABRICKS_PROFILE", "fe-vm-morgan-stable-classic-6df0yw"),
-    )
-    token = cfg.authenticate()["Authorization"].replace("Bearer ", "")
+def main():
+    sdk_cfg = Config()
+    token = sdk_cfg.authenticate()["Authorization"].replace("Bearer ", "")
     client = VectorSearchClient(
-        workspace_url=cfg.host,
+        workspace_url=sdk_cfg.host,
         personal_access_token=token,
     )
 
@@ -74,4 +71,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    main()

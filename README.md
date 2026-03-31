@@ -30,25 +30,26 @@ User describes document in chat
 doc_finder/
 ├── databricks.yml               # DABs bundle config (variables + targets)
 ├── resources/
-│   └── doc_finder_app.yml       # App resource definition
+│   ├── doc_finder_app.yml       # App resource definition
+│   └── pipeline_jobs.yml        # Data pipeline job (3 sequential tasks)
 ├── src/
-│   └── app/                     # App source (deployed to Databricks)
-│       ├── app.yaml             # Databricks App runtime config
-│       ├── requirements.txt     # Python dependencies
-│       ├── backend/
-│       │   ├── main.py          # FastAPI app (chat + PDF endpoints)
-│       │   ├── agent.py         # Chat agent (single-call pattern)
-│       │   └── vector_search.py # Vector Search query client
-│       └── static/
-│           └── index.html       # React frontend (CDN-loaded)
-├── pipeline/
-│   ├── 01_parse_docs.py         # Parse PDFs with ai_parse_document
-│   ├── 02_summarize_docs.py     # Summarize docs with ai_query
-│   ├── 03_create_vs_index.py    # Create Vector Search endpoint + index
-│   └── 04_grant_app_permissions.py  # Grant app SP access to UC resources
+│   ├── app/                     # App source (deployed to Databricks)
+│   │   ├── app.yaml             # Databricks App runtime config
+│   │   ├── requirements.txt     # Python dependencies
+│   │   ├── backend/
+│   │   │   ├── main.py          # FastAPI app (chat + PDF endpoints)
+│   │   │   ├── agent.py         # Chat agent (single-call pattern)
+│   │   │   └── vector_search.py # Vector Search query client
+│   │   └── static/
+│   │       └── index.html       # React frontend (CDN-loaded)
+│   └── pipeline/                # Pipeline scripts (run as DABs job tasks)
+│       ├── _config.py           # Shared config parser (CLI args + env vars)
+│       ├── 01_parse_docs.py     # Parse PDFs with ai_parse_document
+│       ├── 02_summarize_docs.py # Summarize docs with ai_query
+│       └── 03_create_vs_index.py# Create VS endpoint + index
 ├── scripts/
 │   └── configure.py             # Generate app.yaml from bundle variables
-├── .env.example                 # Template for pipeline env vars
+├── .env.example                 # Template for local pipeline runs
 └── raw_docs/                    # Source PDFs
 ```
 
@@ -97,47 +98,52 @@ python scripts/configure.py dev
 python scripts/configure.py prod
 ```
 
-### 2. Set pipeline environment (for non-default targets)
+### 2. Deploy everything via DABs
 
 ```bash
-cp .env.example .env
-# Edit .env with your target workspace values
-source .env
-```
-
-### 3. Upload PDFs and run the data pipeline
-
-```bash
-# Upload PDFs to the volume in your workspace, then:
-python pipeline/01_parse_docs.py         # Parse PDFs (~2 min)
-python pipeline/02_summarize_docs.py     # Summarize docs (~2 min)
-python pipeline/03_create_vs_index.py    # Create VS index (~10-15 min)
-```
-
-### 4. Deploy the app via DABs
-
-```bash
+# Validate the bundle
 databricks bundle validate -t dev
+
+# Deploy app + pipeline job definitions
 databricks bundle deploy -t dev
+
+# Run the data pipeline (parse → summarize → create VS index)
+databricks bundle run data_pipeline -t dev
+
+# Start the app
 databricks bundle run doc_finder -t dev
 ```
 
-### 5. Grant permissions
+### 3. Grant permissions
 
-After the app is created, get its service principal ID and grant UC access:
+After the app is created, grant its service principal UC access:
 
 ```bash
-export APP_SP_ID=$(databricks apps get doc-finder-dev --output=json | python3 -c "import sys,json; print(json.load(sys.stdin)['service_principal_client_id'])")
-python pipeline/04_grant_app_permissions.py
+APP_SP_ID=$(databricks apps get doc-finder-dev --output=json \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['service_principal_client_id'])")
+
+python src/pipeline/04_grant_app_permissions.py \
+  --catalog=morgan_stable_classic_6df0yw_catalog \
+  --schema=doc_finder \
+  --warehouse-id=718f1b203cdea5c4 \
+  --app-sp-id=$APP_SP_ID
+```
+
+### Running pipeline locally (alternative to DABs jobs)
+
+```bash
+cp .env.example .env   # Edit with your values
+source .env
+python src/pipeline/01_parse_docs.py --catalog=$CATALOG --schema=$SCHEMA --warehouse-id=$WAREHOUSE_ID --volume=$VOLUME
 ```
 
 ## Deploying to a New Workspace
 
-1. Add a new target in `databricks.yml` with the workspace profile and variables
-2. `python scripts/configure.py <target>` to generate app.yaml
-3. `source .env` with target-specific values for pipeline scripts
-4. Run the pipeline (steps 1-3 above)
-5. `databricks bundle deploy -t <target>` + `databricks bundle run doc_finder -t <target>`
+1. Add a new target in `databricks.yml` with the workspace profile and variable overrides
+2. `python scripts/configure.py <target>` to generate `src/app/app.yaml`
+3. `databricks bundle deploy -t <target>`
+4. `databricks bundle run data_pipeline -t <target>` (pipeline reads `${var.*}` from bundle)
+5. `databricks bundle run doc_finder -t <target>` to start the app
 6. Grant permissions to the new app's service principal
 
 ## Adding New Documents

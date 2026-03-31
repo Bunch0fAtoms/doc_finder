@@ -1,0 +1,58 @@
+resources:
+  jobs:
+    data_pipeline:
+      name: "[${bundle.target}] doc-finder: Data Pipeline"
+      tasks:
+        - task_key: parse_docs
+          spark_python_task:
+            python_file: ../src/pipeline/01_parse_docs.py
+            parameters:
+              - --catalog=${var.catalog}
+              - --schema=${var.schema}
+              - --warehouse-id=${var.warehouse_id}
+              - --volume=${var.volume_name}
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode
+
+        - task_key: summarize_docs
+          depends_on:
+            - task_key: parse_docs
+          spark_python_task:
+            python_file: ../src/pipeline/02_summarize_docs.py
+            parameters:
+              - --catalog=${var.catalog}
+              - --schema=${var.schema}
+              - --warehouse-id=${var.warehouse_id}
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode
+
+        - task_key: create_vs_index
+          depends_on:
+            - task_key: summarize_docs
+          spark_python_task:
+            python_file: ../src/pipeline/03_create_vs_index.py
+            parameters:
+              - --catalog=${var.catalog}
+              - --schema=${var.schema}
+              - --vs-endpoint-name=${var.vs_endpoint_name}
+              - --embedding-model=${var.embedding_model}
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode

@@ -1,30 +1,18 @@
-# pipeline/02_summarize_docs.py
+# src/pipeline/02_summarize_docs.py
 """
 Generate document summaries using ai_query for vector search indexing.
 
-Configuration via environment variables (or defaults to dev):
-    DATABRICKS_HOST, DATABRICKS_PROFILE, CATALOG, SCHEMA, WAREHOUSE_ID
+DABs:  databricks bundle run data_pipeline (runs all 3 steps)
+Local: python src/pipeline/02_summarize_docs.py --catalog=X --schema=X --warehouse-id=X
 """
-import os
 from databricks import sql
 from databricks.sdk.core import Config
+from _config import parse_config
 
-CATALOG = os.getenv("CATALOG", "morgan_stable_classic_6df0yw_catalog")
-SCHEMA = os.getenv("SCHEMA", "doc_finder")
-WAREHOUSE_ID = os.getenv("WAREHOUSE_ID", "718f1b203cdea5c4")
-
-
-def get_connection():
-    cfg = Config(
-        host=os.getenv("DATABRICKS_HOST", "https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com"),
-        profile=os.getenv("DATABRICKS_PROFILE", "fe-vm-morgan-stable-classic-6df0yw"),
-    )
-    return sql.connect(
-        server_hostname=cfg.host.replace("https://", ""),
-        http_path=f"/sql/1.0/warehouses/{WAREHOUSE_ID}",
-        credentials_provider=lambda: cfg.authenticate,
-    )
-
+cfg = parse_config("catalog", "schema", "warehouse_id")
+CATALOG = cfg["catalog"]
+SCHEMA = cfg["schema"]
+WAREHOUSE_ID = cfg["warehouse_id"]
 
 SUMMARY_PROMPT = """Summarize this document in under 200 words. Include:
 - Document title or subject
@@ -37,7 +25,16 @@ Document text:
 """
 
 
-def run():
+def get_connection():
+    sdk_cfg = Config()
+    return sql.connect(
+        server_hostname=sdk_cfg.host.replace("https://", ""),
+        http_path=f"/sql/1.0/warehouses/{WAREHOUSE_ID}",
+        credentials_provider=lambda: sdk_cfg.authenticate,
+    )
+
+
+def main():
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -79,4 +76,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    main()

@@ -1,37 +1,36 @@
-# pipeline/01_parse_docs.py
+# src/pipeline/01_parse_docs.py
 """
 Parse PDFs from Unity Catalog volume using ai_parse_document.
 
-Configuration via environment variables (or defaults to dev):
-    DATABRICKS_HOST, DATABRICKS_PROFILE, CATALOG, SCHEMA, WAREHOUSE_ID
+DABs:  databricks bundle run data_pipeline (runs all 3 steps)
+Local: python src/pipeline/01_parse_docs.py --catalog=X --schema=X --warehouse-id=X
 """
-import os
 from databricks import sql
 from databricks.sdk.core import Config
+from _config import parse_config
 
-CATALOG = os.getenv("CATALOG", "morgan_stable_classic_6df0yw_catalog")
-SCHEMA = os.getenv("SCHEMA", "doc_finder")
-VOLUME_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/raw_docs"
-WAREHOUSE_ID = os.getenv("WAREHOUSE_ID", "718f1b203cdea5c4")
+cfg = parse_config("catalog", "schema", "warehouse_id", "volume")
+CATALOG = cfg["catalog"]
+SCHEMA = cfg["schema"]
+WAREHOUSE_ID = cfg["warehouse_id"]
+VOLUME_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/{cfg['volume']}"
 
 
 def get_connection():
-    cfg = Config(
-        host=os.getenv("DATABRICKS_HOST", "https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com"),
-        profile=os.getenv("DATABRICKS_PROFILE", "fe-vm-morgan-stable-classic-6df0yw"),
-    )
+    sdk_cfg = Config()
     return sql.connect(
-        server_hostname=cfg.host.replace("https://", ""),
+        server_hostname=sdk_cfg.host.replace("https://", ""),
         http_path=f"/sql/1.0/warehouses/{WAREHOUSE_ID}",
-        credentials_provider=lambda: cfg.authenticate,
+        credentials_provider=lambda: sdk_cfg.authenticate,
     )
 
 
-def run():
+def main():
     conn = get_connection()
     cursor = conn.cursor()
 
     print(f"Parsing PDFs from {VOLUME_PATH}...")
+    print(f"Writing to {CATALOG}.{SCHEMA}.parsed_docs")
     cursor.execute(f"""
         CREATE OR REPLACE TABLE {CATALOG}.{SCHEMA}.parsed_docs AS
         SELECT
@@ -51,4 +50,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    main()
