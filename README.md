@@ -2,15 +2,15 @@
 
 Internal document search app for Integra LifeSciences. Employees describe the document they need via a chat interface, an AI agent searches the corpus using semantic search, and the best matching PDF is displayed in a side panel.
 
-**Live app**: https://doc-finder-7474647784490566.aws.databricksapps.com
+Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portability.
 
 ## Architecture
 
 - **Frontend**: React (CDN-loaded, single HTML file) with split-pane chat + PDF viewer
 - **Backend**: FastAPI serving the chat API and PDF files from Unity Catalog volumes
-- **Agent**: `databricks-claude-sonnet-4-6` via Foundation Model API — searches Vector Search, then responds with the best match in a single LLM call
-- **Search**: Databricks Vector Search with per-document summary embeddings (`databricks-gte-large-en`)
-- **Deployment**: Databricks App on workspace `fevm-morgan-stable-classic-6df0yw`
+- **Agent**: Foundation Model API — searches Vector Search, then responds with the best match in a single LLM call
+- **Search**: Databricks Vector Search with per-document summary embeddings
+- **Deployment**: Databricks Asset Bundles → Databricks App
 
 ### Data Flow
 
@@ -18,7 +18,7 @@ Internal document search app for Integra LifeSciences. Employees describe the do
 User describes document in chat
   → FastAPI receives POST /api/chat
   → Vector Search query over document summaries
-  → Search results + user message sent to databricks-claude-sonnet-4-6
+  → Search results + user message sent to Foundation Model
   → Agent returns explanation + {filename, score}
   → Frontend renders response in chat + loads PDF via GET /api/docs/{filename}
   → PDF served from Unity Catalog volume via REST API
@@ -28,95 +28,117 @@ User describes document in chat
 
 ```
 doc_finder/
-├── app.yaml                     # Databricks App config
-├── requirements.txt             # Python dependencies
-├── backend/
-│   ├── main.py                  # FastAPI app (chat + PDF endpoints)
-│   ├── agent.py                 # Chat agent (Foundation Model API, single-call pattern)
-│   └── vector_search.py         # Vector Search query client
-├── static/
-│   └── index.html               # React frontend (CDN-loaded, no build step)
+├── databricks.yml               # DABs bundle config (variables + targets)
+├── resources/
+│   └── doc_finder_app.yml       # App resource definition
+├── src/
+│   └── app/                     # App source (deployed to Databricks)
+│       ├── app.yaml             # Databricks App runtime config
+│       ├── requirements.txt     # Python dependencies
+│       ├── backend/
+│       │   ├── main.py          # FastAPI app (chat + PDF endpoints)
+│       │   ├── agent.py         # Chat agent (single-call pattern)
+│       │   └── vector_search.py # Vector Search query client
+│       └── static/
+│           └── index.html       # React frontend (CDN-loaded)
 ├── pipeline/
 │   ├── 01_parse_docs.py         # Parse PDFs with ai_parse_document
 │   ├── 02_summarize_docs.py     # Summarize docs with ai_query
 │   ├── 03_create_vs_index.py    # Create Vector Search endpoint + index
 │   └── 04_grant_app_permissions.py  # Grant app SP access to UC resources
-└── raw_docs/                    # Source PDFs (also in UC volume)
+├── scripts/
+│   └── configure.py             # Generate app.yaml from bundle variables
+├── .env.example                 # Template for pipeline env vars
+└── raw_docs/                    # Source PDFs
+```
+
+## Bundle Variables
+
+All environment-specific values are defined as variables in `databricks.yml`:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `catalog` | Unity Catalog catalog | `morgan_stable_classic_6df0yw_catalog` |
+| `schema` | Unity Catalog schema | `doc_finder` |
+| `warehouse_id` | SQL Warehouse ID | `718f1b203cdea5c4` |
+| `vs_endpoint_name` | Vector Search endpoint | `doc_finder_vs_endpoint` |
+| `vs_index_name` | Vector Search index (full name) | `<catalog>.<schema>.doc_summaries_index` |
+| `foundation_model` | LLM for chat agent | `databricks-claude-sonnet-4-6` |
+| `embedding_model` | Embedding model for VS | `databricks-gte-large-en` |
+| `volume_name` | Volume for PDF storage | `raw_docs` |
+
+Override per target in `databricks.yml`:
+
+```yaml
+targets:
+  prod:
+    workspace:
+      profile: prod-workspace-profile
+    variables:
+      catalog: prod_catalog
+      warehouse_id: "abc123"
 ```
 
 ## Setup
 
 ### Prerequisites
 
-- Databricks CLI authenticated to the workspace (`databricks auth login`)
-- Python 3.11+ with packages: `databricks-sdk`, `databricks-sql-connector`, `databricks-vectorsearch`, `openai`
+- Databricks CLI v0.239.0+ (`databricks --version`)
+- Authenticated CLI profile for the target workspace
+- Python 3.11+ with: `databricks-sdk`, `databricks-sql-connector`, `databricks-vectorsearch`, `openai`
 
-### 1. Upload PDFs to the volume
-
-Upload PDFs to `/Volumes/morgan_stable_classic_6df0yw_catalog/doc_finder/raw_docs/` via the Databricks UI or CLI.
-
-### 2. Run the data pipeline
-
-Run scripts in order. Each connects to the SQL warehouse to execute queries.
+### 1. Configure for your target
 
 ```bash
-python pipeline/01_parse_docs.py         # Extract text from PDFs (~2 min)
-python pipeline/02_summarize_docs.py     # Generate summaries per doc (~2 min)
-python pipeline/03_create_vs_index.py    # Create VS endpoint + index (~10-15 min)
+# Generate app.yaml from bundle variables
+python scripts/configure.py dev
+
+# Or for a different target:
+python scripts/configure.py prod
 ```
 
-### 3. Deploy the app
+### 2. Set pipeline environment (for non-default targets)
 
 ```bash
-# Create workspace directory and upload app files
-PROFILE=fe-vm-morgan-stable-classic-6df0yw
-WS=/Workspace/Users/morgan.williams@databricks.com/doc_finder_app
-
-databricks workspace mkdirs $WS --profile=$PROFILE
-databricks workspace mkdirs $WS/backend --profile=$PROFILE
-databricks workspace mkdirs $WS/static --profile=$PROFILE
-
-for f in app.yaml requirements.txt backend/__init__.py backend/main.py backend/agent.py backend/vector_search.py static/index.html; do
-  databricks workspace import $WS/$f --file=$f --format=AUTO --overwrite --profile=$PROFILE
-done
-
-# Create and deploy the app
-databricks apps create doc-finder --profile=$PROFILE
-# Wait for compute to become ACTIVE, then:
-databricks apps deploy doc-finder --source-code-path $WS --profile=$PROFILE
+cp .env.example .env
+# Edit .env with your target workspace values
+source .env
 ```
 
-### 4. Add SQL Warehouse resource
+### 3. Upload PDFs and run the data pipeline
 
 ```bash
-databricks api patch /api/2.0/apps/doc-finder --json '{
-  "resources": [
-    {
-      "name": "sql-warehouse",
-      "sql_warehouse": {
-        "id": "718f1b203cdea5c4",
-        "permission": "CAN_USE"
-      }
-    }
-  ]
-}' --profile=$PROFILE
+# Upload PDFs to the volume in your workspace, then:
+python pipeline/01_parse_docs.py         # Parse PDFs (~2 min)
+python pipeline/02_summarize_docs.py     # Summarize docs (~2 min)
+python pipeline/03_create_vs_index.py    # Create VS index (~10-15 min)
 ```
 
-Then redeploy:
+### 4. Deploy the app via DABs
 
 ```bash
-databricks apps deploy doc-finder --source-code-path $WS --profile=$PROFILE
+databricks bundle validate -t dev
+databricks bundle deploy -t dev
+databricks bundle run doc_finder -t dev
 ```
 
-### 5. Grant permissions to the app service principal
+### 5. Grant permissions
 
-Update the `APP_SP_ID` in `pipeline/04_grant_app_permissions.py` with the app's service principal ID (from `databricks apps get doc-finder`), then run:
+After the app is created, get its service principal ID and grant UC access:
 
 ```bash
+export APP_SP_ID=$(databricks apps get doc-finder-dev --output=json | python3 -c "import sys,json; print(json.load(sys.stdin)['service_principal_client_id'])")
 python pipeline/04_grant_app_permissions.py
 ```
 
-This grants the app's SP access to: catalog, schema, vector search index, and volume.
+## Deploying to a New Workspace
+
+1. Add a new target in `databricks.yml` with the workspace profile and variables
+2. `python scripts/configure.py <target>` to generate app.yaml
+3. `source .env` with target-specific values for pipeline scripts
+4. Run the pipeline (steps 1-3 above)
+5. `databricks bundle deploy -t <target>` + `databricks bundle run doc_finder -t <target>`
+6. Grant permissions to the new app's service principal
 
 ## Adding New Documents
 
@@ -130,20 +152,6 @@ This grants the app's SP access to: catalog, schema, vector search index, and vo
    ```python
    from databricks.vector_search.client import VectorSearchClient
    client = VectorSearchClient(...)
-   index = client.get_index("doc_finder_vs_endpoint", "morgan_stable_classic_6df0yw_catalog.doc_finder.doc_summaries_index")
+   index = client.get_index("doc_finder_vs_endpoint", "<catalog>.<schema>.doc_summaries_index")
    index.sync()
    ```
-
-## Workspace Resources
-
-| Resource | Value |
-|----------|-------|
-| Catalog | `morgan_stable_classic_6df0yw_catalog` |
-| Schema | `doc_finder` |
-| Volume | `raw_docs` |
-| Warehouse | `718f1b203cdea5c4` (Serverless Starter Warehouse) |
-| Vector Search Endpoint | `doc_finder_vs_endpoint` |
-| Vector Search Index | `doc_summaries_index` |
-| Foundation Model | `databricks-claude-sonnet-4-6` |
-| Embedding Model | `databricks-gte-large-en` |
-| App URL | https://doc-finder-7474647784490566.aws.databricksapps.com |

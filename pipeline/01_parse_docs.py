@@ -1,19 +1,24 @@
 # pipeline/01_parse_docs.py
 """
 Parse PDFs from Unity Catalog volume using ai_parse_document.
+
+Configuration via environment variables (or defaults to dev):
+    DATABRICKS_HOST, DATABRICKS_PROFILE, CATALOG, SCHEMA, WAREHOUSE_ID
 """
+import os
 from databricks import sql
 from databricks.sdk.core import Config
 
-CATALOG = "morgan_stable_classic_6df0yw_catalog"
-SCHEMA = "doc_finder"
+CATALOG = os.getenv("CATALOG", "morgan_stable_classic_6df0yw_catalog")
+SCHEMA = os.getenv("SCHEMA", "doc_finder")
 VOLUME_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/raw_docs"
-WAREHOUSE_ID = "718f1b203cdea5c4"
+WAREHOUSE_ID = os.getenv("WAREHOUSE_ID", "718f1b203cdea5c4")
+
 
 def get_connection():
     cfg = Config(
-        host="https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com",
-        profile="fe-vm-morgan-stable-classic-6df0yw",
+        host=os.getenv("DATABRICKS_HOST", "https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com"),
+        profile=os.getenv("DATABRICKS_PROFILE", "fe-vm-morgan-stable-classic-6df0yw"),
     )
     return sql.connect(
         server_hostname=cfg.host.replace("https://", ""),
@@ -21,11 +26,12 @@ def get_connection():
         credentials_provider=lambda: cfg.authenticate,
     )
 
+
 def run():
     conn = get_connection()
     cursor = conn.cursor()
 
-    print("Creating parsed_docs table...")
+    print(f"Parsing PDFs from {VOLUME_PATH}...")
     cursor.execute(f"""
         CREATE OR REPLACE TABLE {CATALOG}.{SCHEMA}.parsed_docs AS
         SELECT
@@ -42,6 +48,7 @@ def run():
 
     cursor.close()
     conn.close()
+
 
 if __name__ == "__main__":
     run()

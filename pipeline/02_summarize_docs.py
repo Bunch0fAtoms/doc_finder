@@ -1,18 +1,23 @@
 # pipeline/02_summarize_docs.py
 """
 Generate document summaries using ai_query for vector search indexing.
+
+Configuration via environment variables (or defaults to dev):
+    DATABRICKS_HOST, DATABRICKS_PROFILE, CATALOG, SCHEMA, WAREHOUSE_ID
 """
+import os
 from databricks import sql
 from databricks.sdk.core import Config
 
-CATALOG = "morgan_stable_classic_6df0yw_catalog"
-SCHEMA = "doc_finder"
-WAREHOUSE_ID = "718f1b203cdea5c4"
+CATALOG = os.getenv("CATALOG", "morgan_stable_classic_6df0yw_catalog")
+SCHEMA = os.getenv("SCHEMA", "doc_finder")
+WAREHOUSE_ID = os.getenv("WAREHOUSE_ID", "718f1b203cdea5c4")
+
 
 def get_connection():
     cfg = Config(
-        host="https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com",
-        profile="fe-vm-morgan-stable-classic-6df0yw",
+        host=os.getenv("DATABRICKS_HOST", "https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com"),
+        profile=os.getenv("DATABRICKS_PROFILE", "fe-vm-morgan-stable-classic-6df0yw"),
     )
     return sql.connect(
         server_hostname=cfg.host.replace("https://", ""),
@@ -20,7 +25,7 @@ def get_connection():
         credentials_provider=lambda: cfg.authenticate,
     )
 
-# Single quotes doubled for SQL string safety
+
 SUMMARY_PROMPT = """Summarize this document in under 200 words. Include:
 - Document title or subject
 - Document type (FDA clearance, research article, product brochure, clinical evidence, etc.)
@@ -31,11 +36,12 @@ SUMMARY_PROMPT = """Summarize this document in under 200 words. Include:
 Document text:
 """
 
+
 def run():
     conn = get_connection()
     cursor = conn.cursor()
 
-    print("Creating doc_summaries table...")
+    print(f"Creating {CATALOG}.{SCHEMA}.doc_summaries...")
     cursor.execute(f"""
         CREATE OR REPLACE TABLE {CATALOG}.{SCHEMA}.doc_summaries (
             filename STRING,
@@ -46,7 +52,6 @@ def run():
         TBLPROPERTIES (delta.enableChangeDataFeed = true)
     """)
 
-    # Escape single quotes in the prompt for SQL by doubling them
     sql_safe_prompt = SUMMARY_PROMPT.replace("'", "''")
 
     print("Generating summaries via ai_query (this may take 1-4 minutes)...")
@@ -71,6 +76,7 @@ def run():
 
     cursor.close()
     conn.close()
+
 
 if __name__ == "__main__":
     run()

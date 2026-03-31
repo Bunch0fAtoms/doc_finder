@@ -1,21 +1,27 @@
+# pipeline/03_create_vs_index.py
 """
 Create Vector Search endpoint and Delta Sync index for document summaries.
+
+Configuration via environment variables (or defaults to dev):
+    DATABRICKS_HOST, DATABRICKS_PROFILE, CATALOG, SCHEMA,
+    VS_ENDPOINT_NAME, EMBEDDING_MODEL
 """
+import os
 from databricks.vector_search.client import VectorSearchClient
 from databricks.sdk.core import Config
-import time
 
-CATALOG = "morgan_stable_classic_6df0yw_catalog"
-SCHEMA = "doc_finder"
-VS_ENDPOINT_NAME = "doc_finder_vs_endpoint"
+CATALOG = os.getenv("CATALOG", "morgan_stable_classic_6df0yw_catalog")
+SCHEMA = os.getenv("SCHEMA", "doc_finder")
+VS_ENDPOINT_NAME = os.getenv("VS_ENDPOINT_NAME", "doc_finder_vs_endpoint")
 VS_INDEX_NAME = f"{CATALOG}.{SCHEMA}.doc_summaries_index"
 SOURCE_TABLE = f"{CATALOG}.{SCHEMA}.doc_summaries"
-EMBEDDING_MODEL = "databricks-gte-large-en"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "databricks-gte-large-en")
+
 
 def run():
     cfg = Config(
-        host="https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com",
-        profile="fe-vm-morgan-stable-classic-6df0yw",
+        host=os.getenv("DATABRICKS_HOST", "https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com"),
+        profile=os.getenv("DATABRICKS_PROFILE", "fe-vm-morgan-stable-classic-6df0yw"),
     )
     token = cfg.authenticate()["Authorization"].replace("Bearer ", "")
     client = VectorSearchClient(
@@ -23,7 +29,6 @@ def run():
         personal_access_token=token,
     )
 
-    # Create endpoint if it doesn't exist
     try:
         client.get_endpoint(VS_ENDPOINT_NAME)
         print(f"Endpoint '{VS_ENDPOINT_NAME}' already exists.")
@@ -35,7 +40,6 @@ def run():
         )
         print("Endpoint created.")
 
-    # Create Delta Sync index
     try:
         client.get_index(
             endpoint_name=VS_ENDPOINT_NAME,
@@ -55,7 +59,6 @@ def run():
         )
         print("Index created and synced.")
 
-    # Verify by querying
     index = client.get_index(
         endpoint_name=VS_ENDPOINT_NAME,
         index_name=VS_INDEX_NAME,
@@ -68,6 +71,7 @@ def run():
     print("\nTest query: 'FDA medical device clearance'")
     for doc in results.get("result", {}).get("data_array", []):
         print(f"  - {doc[0]} (score: {doc[-1]:.3f})")
+
 
 if __name__ == "__main__":
     run()

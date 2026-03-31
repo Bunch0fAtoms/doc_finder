@@ -1,0 +1,50 @@
+bundle:
+  name: doc-finder
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog name
+    default: morgan_stable_classic_6df0yw_catalog
+  schema:
+    description: Unity Catalog schema name
+    default: doc_finder
+  warehouse_id:
+    description: SQL Warehouse ID
+    default: 718f1b203cdea5c4
+  vs_endpoint_name:
+    description: Vector Search endpoint name
+    default: doc_finder_vs_endpoint
+  vs_index_name:
+    description: "Full Vector Search index name (catalog.schema.index)"
+    default: morgan_stable_classic_6df0yw_catalog.doc_finder.doc_summaries_index
+  foundation_model:
+    description: Foundation Model API endpoint for the chat agent
+    default: databricks-claude-sonnet-4-6
+  embedding_model:
+    description: Embedding model for Vector Search
+    default: databricks-gte-large-en
+  volume_name:
+    description: Unity Catalog volume for raw PDF documents
+    default: raw_docs
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      profile: fe-vm-morgan-stable-classic-6df0yw
+
+  # Example: deploying to a different workspace
+  # prod:
+  #   mode: production
+  #   workspace:
+  #     profile: prod-workspace-profile
+  #   variables:
+  #     catalog: prod_catalog
+  #     schema: doc_finder
+  #     warehouse_id: "abc123def456"
+  #     vs_endpoint_name: doc_finder_vs_endpoint
+  #     vs_index_name: prod_catalog.doc_finder.doc_summaries_index
