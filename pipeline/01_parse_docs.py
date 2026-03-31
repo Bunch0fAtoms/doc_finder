@@ -2,8 +2,6 @@
 """
 Parse PDFs from Unity Catalog volume using ai_parse_document.
 """
-import os
-import sys
 from databricks import sql
 from databricks.sdk.core import Config
 
