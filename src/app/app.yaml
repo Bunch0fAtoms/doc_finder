@@ -7,9 +7,6 @@ command:
   - "8000"
 
 env:
-  - name: DATABRICKS_WAREHOUSE_ID
-    valueFrom: sql-warehouse
-
   - name: VS_ENDPOINT_NAME
     value: doc_finder_vs_endpoint
 

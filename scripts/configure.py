@@ -24,9 +24,6 @@ APP_YAML_TEMPLATE = """command:
   - "8000"
 
 env:
-  - name: DATABRICKS_WAREHOUSE_ID
-    valueFrom: sql-warehouse
-
   - name: VS_ENDPOINT_NAME
     value: "{vs_endpoint_name}"
 
@@ -75,7 +72,6 @@ def main():
     print(f"Wrote {output_path}")
     print(f"  catalog:          {variables.get('catalog')}")
     print(f"  schema:           {variables.get('schema')}")
-    print(f"  warehouse_id:     {variables.get('warehouse_id')}")
     print(f"  vs_endpoint:      {variables.get('vs_endpoint_name')}")
     print(f"  foundation_model: {variables.get('foundation_model')}")
 
