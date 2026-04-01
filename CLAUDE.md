@@ -38,10 +38,11 @@ databricks bundle run doc_finder -t dev  # Start app
 
 ## Conventions
 
+- **Update the README and push to git for every change.** Do not leave the README stale.
 - All app source lives in `src/app/` — this is what DABs deploys.
-- Pipeline scripts in `pipeline/` run locally against the SQL warehouse.
+- Pipeline scripts in `src/pipeline/` run as DABs jobs or locally.
 - Use the single-call agent pattern (search first, then one LLM call) to stay under the 60s app proxy timeout.
-- App service principal needs explicit UC grants via `pipeline/04_grant_app_permissions.py`.
+- App service principal needs explicit UC grants via `src/pipeline/04_grant_app_permissions.py`.
 - Run `scripts/configure.py <target>` before deploying to a new target.
 
 ## Key Decisions
