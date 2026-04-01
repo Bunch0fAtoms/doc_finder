@@ -11,14 +11,7 @@ resources:
               - --schema=${var.schema}
               - --warehouse-id=${var.warehouse_id}
               - --volume=${var.volume_name}
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            num_workers: 0
-            spark_conf:
-              spark.master: "local[*]"
-              spark.databricks.cluster.profile: singleNode
-            custom_tags:
-              ResourceClass: SingleNode
+          environment_key: pipeline_env
 
         - task_key: summarize_docs
           depends_on:
@@ -29,14 +22,7 @@ resources:
               - --catalog=${var.catalog}
               - --schema=${var.schema}
               - --warehouse-id=${var.warehouse_id}
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            num_workers: 0
-            spark_conf:
-              spark.master: "local[*]"
-              spark.databricks.cluster.profile: singleNode
-            custom_tags:
-              ResourceClass: SingleNode
+          environment_key: pipeline_env
 
         - task_key: create_vs_index
           depends_on:
@@ -48,11 +34,13 @@ resources:
               - --schema=${var.schema}
               - --vs-endpoint-name=${var.vs_endpoint_name}
               - --embedding-model=${var.embedding_model}
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            num_workers: 0
-            spark_conf:
-              spark.master: "local[*]"
-              spark.databricks.cluster.profile: singleNode
-            custom_tags:
-              ResourceClass: SingleNode
+          environment_key: pipeline_env
+
+      environments:
+        - environment_key: pipeline_env
+          spec:
+            dependencies:
+              - databricks-sdk
+              - databricks-sql-connector
+              - databricks-vectorsearch
+            client: "1"
