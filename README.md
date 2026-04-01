@@ -1,6 +1,6 @@
 # Doc Finder
 
-Internal document search app for Integra LifeSciences. Employees describe the document they need via a chat interface, an AI agent searches the corpus using semantic search, and the best matching PDF is displayed in a side panel.
+Internal document search app for Integra LifeSciences. Employees describe the document they need via a chat interface, an AI agent searches the corpus using **hybrid search** (semantic + exact keyword), and the best matching PDF is displayed in a side panel.
 
 Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portability.
 
@@ -8,20 +8,46 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 
 - **Frontend**: React (CDN-loaded, single HTML file) with split-pane chat + PDF viewer
 - **Backend**: FastAPI serving the chat API and PDF files from Unity Catalog volumes
-- **Agent**: Foundation Model API — searches Vector Search, then responds with the best match in a single LLM call
-- **Search**: Databricks Vector Search with per-document summary embeddings
+- **Agent**: `databricks-claude-sonnet-4-6` via Foundation Model API — hybrid search with single LLM call
+- **Semantic Search**: Databricks Vector Search over per-document summary embeddings (`databricks-gte-large-en`)
+- **Keyword Search**: SQL `ILIKE` on full extracted text for exact identifiers (SKUs, part numbers, regulatory codes)
 - **Deployment**: Databricks Asset Bundles → Databricks App
+
+### Hybrid Search
+
+The agent automatically selects the right search strategy based on the user's query:
+
+| Query Type | Example | Search Method |
+|-----------|---------|---------------|
+| **Semantic** | "Find the wound healing brochure" | Vector Search on summaries |
+| **Exact identifier** | "Find document K243531" | SQL ILIKE on full text |
+| **Hybrid** | "FDA clearance for product code JXG" | Both, results merged |
+
+Identifier detection uses regex patterns matching SKUs, part numbers, CFR codes, and alphanumeric product codes. When identifiers are detected, keyword results are prioritized.
 
 ### Data Flow
 
 ```
 User describes document in chat
   → FastAPI receives POST /api/chat
-  → Vector Search query over document summaries
-  → Search results + user message sent to Foundation Model
+  → Agent detects identifiers in message (regex)
+  → If identifiers found: SQL ILIKE on doc_summaries.full_text (keyword search)
+  → Always: Vector Search on doc_summaries.summary (semantic search)
+  → Results merged, deduplicated by filename
+  → Combined results + user message sent to Claude Sonnet 4.6
   → Agent returns explanation + {filename, score}
   → Frontend renders response in chat + loads PDF via GET /api/docs/{filename}
   → PDF served from Unity Catalog volume via REST API
+```
+
+### Data Pipeline
+
+```
+UC Volume (raw PDFs)
+  → Step 1: ai_parse_document extracts text from each PDF
+  → Step 2: ai_query (Gemini 3.1 Pro, 100K char input) generates ~200-word summary per document
+  → Step 3: Vector Search Delta Sync index embeds summaries with databricks-gte-large-en
+  → Output: doc_summaries table (filename, summary, full_text) + VS index
 ```
 
 ## Project Structure
@@ -30,7 +56,7 @@ User describes document in chat
 doc_finder/
 ├── databricks.yml               # DABs bundle config (variables + targets)
 ├── resources/
-│   ├── doc_finder_app.yml       # App resource definition
+│   ├── doc_finder_app.yml       # App resource (+ SQL warehouse for keyword search)
 │   └── pipeline_jobs.yml        # Data pipeline job (3 sequential tasks)
 ├── src/
 │   ├── app/                     # App source (deployed to Databricks)
@@ -38,15 +64,17 @@ doc_finder/
 │   │   ├── requirements.txt     # Python dependencies
 │   │   ├── backend/
 │   │   │   ├── main.py          # FastAPI app (chat + PDF endpoints)
-│   │   │   ├── agent.py         # Chat agent (single-call pattern)
-│   │   │   └── vector_search.py # Vector Search query client
+│   │   │   ├── agent.py         # Hybrid search agent (semantic + keyword)
+│   │   │   ├── vector_search.py # Vector Search query client
+│   │   │   └── keyword_search.py# SQL ILIKE search on full text
 │   │   └── static/
 │   │       └── index.html       # React frontend (CDN-loaded)
 │   └── pipeline/                # Pipeline scripts (run as DABs job tasks)
 │       ├── _config.py           # Shared config parser (CLI args + env vars)
 │       ├── 01_parse_docs.py     # Parse PDFs with ai_parse_document
-│       ├── 02_summarize_docs.py # Summarize docs with ai_query
-│       └── 03_create_vs_index.py# Create VS endpoint + index
+│       ├── 02_summarize_docs.py # Summarize with Gemini 3.1 Pro (100K input)
+│       ├── 03_create_vs_index.py# Create VS endpoint + index
+│       └── 04_grant_app_permissions.py
 ├── scripts/
 │   └── configure.py             # Generate app.yaml from bundle variables
 ├── .env.example                 # Template for local pipeline runs
@@ -61,7 +89,7 @@ All environment-specific values are defined as variables in `databricks.yml`:
 |----------|-------------|---------|
 | `catalog` | Unity Catalog catalog | `morgan_stable_classic_6df0yw_catalog` |
 | `schema` | Unity Catalog schema | `doc_finder` |
-| `warehouse_id` | SQL Warehouse ID | `718f1b203cdea5c4` |
+| `warehouse_id` | SQL Warehouse ID (pipeline + keyword search) | `718f1b203cdea5c4` |
 | `vs_endpoint_name` | Vector Search endpoint | `doc_finder_vs_endpoint` |
 | `vs_index_name` | Vector Search index (full name) | `<catalog>.<schema>.doc_summaries_index` |
 | `foundation_model` | LLM for chat agent | `databricks-claude-sonnet-4-6` |
@@ -91,32 +119,19 @@ targets:
 ### 1. Configure for your target
 
 ```bash
-# Generate app.yaml from bundle variables
 python scripts/configure.py dev
-
-# Or for a different target:
-python scripts/configure.py prod
 ```
 
 ### 2. Deploy everything via DABs
 
 ```bash
-# Validate the bundle
 databricks bundle validate -t dev
-
-# Deploy app + pipeline job definitions
 databricks bundle deploy -t dev
-
-# Run the data pipeline (parse → summarize → create VS index)
-databricks bundle run data_pipeline -t dev
-
-# Start the app
-databricks bundle run doc_finder -t dev
+databricks bundle run data_pipeline -t dev   # Parse → Summarize → Index
+databricks bundle run doc_finder -t dev      # Start app
 ```
 
 ### 3. Grant permissions
-
-After the app is created, grant its service principal UC access:
 
 ```bash
 APP_SP_ID=$(databricks apps get doc-finder-dev --output=json \
@@ -129,21 +144,15 @@ python src/pipeline/04_grant_app_permissions.py \
   --app-sp-id=$APP_SP_ID
 ```
 
-### Running pipeline locally (alternative to DABs jobs)
-
-```bash
-cp .env.example .env   # Edit with your values
-source .env
-python src/pipeline/01_parse_docs.py --catalog=$CATALOG --schema=$SCHEMA --warehouse-id=$WAREHOUSE_ID --volume=$VOLUME
-```
+Grants: USE_CATALOG, USE_SCHEMA, SELECT on VS index, SELECT on doc_summaries table, READ_VOLUME.
 
 ## Deploying to a New Workspace
 
 1. Add a new target in `databricks.yml` with the workspace profile and variable overrides
 2. `python scripts/configure.py <target>` to generate `src/app/app.yaml`
 3. `databricks bundle deploy -t <target>`
-4. `databricks bundle run data_pipeline -t <target>` (pipeline reads `${var.*}` from bundle)
-5. `databricks bundle run doc_finder -t <target>` to start the app
+4. `databricks bundle run data_pipeline -t <target>`
+5. `databricks bundle run doc_finder -t <target>`
 6. Grant permissions to the new app's service principal
 
 ## Adding New Documents
@@ -151,13 +160,16 @@ python src/pipeline/01_parse_docs.py --catalog=$CATALOG --schema=$SCHEMA --wareh
 1. Upload new PDFs to the volume
 2. Re-run the pipeline:
    ```bash
-   python pipeline/01_parse_docs.py
-   python pipeline/02_summarize_docs.py
+   databricks bundle run data_pipeline -t dev
    ```
-3. Sync the Vector Search index:
-   ```python
-   from databricks.vector_search.client import VectorSearchClient
-   client = VectorSearchClient(...)
-   index = client.get_index("doc_finder_vs_endpoint", "<catalog>.<schema>.doc_summaries_index")
-   index.sync()
-   ```
+   This re-parses all PDFs, regenerates summaries, and syncs the VS index.
+
+## Databricks Resources Used
+
+| Resource | Used By | Purpose |
+|----------|---------|---------|
+| **SQL Warehouse** | Pipeline + App (keyword search) | `ai_parse_document`, `ai_query`, `ILIKE` queries |
+| **Vector Search Endpoint** | App (semantic search) | Similarity search over document summaries |
+| **Foundation Model API** | Pipeline + App | Gemini 3.1 Pro (summarization), Claude Sonnet 4.6 (chat agent) |
+| **Unity Catalog Volume** | Pipeline + App | PDF storage and serving |
+| **Databricks App** | End users | FastAPI + React frontend |
