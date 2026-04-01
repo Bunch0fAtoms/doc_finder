@@ -9,21 +9,27 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 - **Frontend**: React (CDN-loaded, single HTML file) with split-pane chat + PDF viewer
 - **Backend**: FastAPI serving the chat API and PDF files from Unity Catalog volumes
 - **Agent**: `databricks-claude-sonnet-4-6` via Foundation Model API — hybrid search with single LLM call
-- **Semantic Search**: Databricks Vector Search over per-document summary embeddings (`databricks-gte-large-en`)
-- **Keyword Search**: SQL `ILIKE` on full extracted text for exact identifiers (SKUs, part numbers, regulatory codes)
+- **Vector Search**: Databricks Vector Search in hybrid mode (vector + keyword) over summary embeddings (`databricks-gte-large-en`)
+- **SQL Keyword Search**: SQL `ILIKE` on full extracted text for exact identifiers (SKUs, part numbers, regulatory codes)
 - **Deployment**: Databricks Asset Bundles → Databricks App
 
 ### Hybrid Search
 
 The agent automatically selects the right search strategy based on the user's query:
 
-| Query Type | Example | Search Method |
-|-----------|---------|---------------|
-| **Semantic** | "Find the wound healing brochure" | Vector Search on summaries |
-| **Exact identifier** | "Find document K243531" | SQL ILIKE on full text |
-| **Hybrid** | "FDA clearance for product code JXG" | Both, results merged |
+The search operates on three layers:
 
-Identifier detection uses regex patterns matching SKUs, part numbers, CFR codes, and alphanumeric product codes. When identifiers are detected, keyword results are prioritized.
+1. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries
+2. **SQL ILIKE** — exact text match on full extracted document text (for SKUs, part numbers, regulatory codes)
+3. **Agent intelligence** — Claude Sonnet 4.6 merges results, prioritizes keyword matches for identifier queries, and explains why the document matches
+
+| Query Type | Example | Search Path |
+|-----------|---------|-------------|
+| **Semantic** | "Find the wound healing brochure" | VS hybrid on summaries |
+| **Exact identifier** | "Find document K243531" | VS hybrid + SQL ILIKE on full text |
+| **Mixed** | "FDA clearance for product code JXG" | VS hybrid + SQL ILIKE, merged |
+
+Identifier detection uses regex patterns matching SKUs, part numbers, CFR codes, and alphanumeric product codes.
 
 ### Data Flow
 
@@ -32,7 +38,7 @@ User describes document in chat
   → FastAPI receives POST /api/chat
   → Agent detects identifiers in message (regex)
   → If identifiers found: SQL ILIKE on doc_summaries.full_text (keyword search)
-  → Always: Vector Search on doc_summaries.summary (semantic search)
+  → Always: Vector Search hybrid query on doc_summaries.summary (vector + keyword)
   → Results merged, deduplicated by filename
   → Combined results + user message sent to Claude Sonnet 4.6
   → Agent returns explanation + {filename, score}
@@ -45,7 +51,7 @@ User describes document in chat
 ```
 UC Volume (raw PDFs)
   → Step 1: ai_parse_document extracts text from each PDF
-  → Step 2: ai_query (Gemini 3.1 Pro, 100K char input) generates ~200-word summary per document
+  → Step 2: ai_query (Gemini 2.5 Pro, 100K char input) generates ~200-word summary per document
   → Step 3: Vector Search Delta Sync index embeds summaries with databricks-gte-large-en
   → Output: doc_summaries table (filename, summary, full_text) + VS index
 ```
@@ -72,7 +78,7 @@ doc_finder/
 │   └── pipeline/                # Pipeline scripts (run as DABs job tasks)
 │       ├── _config.py           # Shared config parser (CLI args + env vars)
 │       ├── 01_parse_docs.py     # Parse PDFs with ai_parse_document
-│       ├── 02_summarize_docs.py # Summarize with Gemini 3.1 Pro (100K input)
+│       ├── 02_summarize_docs.py # Summarize with Gemini 2.5 Pro (100K input)
 │       ├── 03_create_vs_index.py# Create VS endpoint + index
 │       └── 04_grant_app_permissions.py
 ├── scripts/
@@ -170,6 +176,6 @@ Grants: USE_CATALOG, USE_SCHEMA, SELECT on VS index, SELECT on doc_summaries tab
 |----------|---------|---------|
 | **SQL Warehouse** | Pipeline + App (keyword search) | `ai_parse_document`, `ai_query`, `ILIKE` queries |
 | **Vector Search Endpoint** | App (semantic search) | Similarity search over document summaries |
-| **Foundation Model API** | Pipeline + App | Gemini 3.1 Pro (summarization), Claude Sonnet 4.6 (chat agent) |
+| **Foundation Model API** | Pipeline + App | Gemini 2.5 Pro (summarization), Claude Sonnet 4.6 (chat agent) |
 | **Unity Catalog Volume** | Pipeline + App | PDF storage and serving |
 | **Databricks App** | End users | FastAPI + React frontend |
