@@ -57,7 +57,7 @@ def main():
         SELECT
             filename,
             ai_query(
-                'databricks-gemini-3-1-pro',
+                'databricks-gemini-2-5-pro',
                 CONCAT('{sql_safe_prompt}', LEFT(parsed_text, 100000))
             ) AS summary,
             parsed_text AS full_text
