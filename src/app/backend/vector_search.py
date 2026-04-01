@@ -38,6 +38,7 @@ def search_documents(query: str, num_results: int = 5) -> list[dict]:
         query_text=query,
         columns=["filename", "summary"],
         num_results=num_results,
+        query_type="hybrid",
     )
     data = results.get("result", {}).get("data_array", [])
     return [
