@@ -57,8 +57,8 @@ def main():
         SELECT
             filename,
             ai_query(
-                'databricks-meta-llama-3-3-70b-instruct',
-                CONCAT('{sql_safe_prompt}', LEFT(parsed_text, 8000))
+                'databricks-gemini-3-1-pro',
+                CONCAT('{sql_safe_prompt}', LEFT(parsed_text, 100000))
             ) AS summary,
             parsed_text AS full_text
         FROM {CATALOG}.{SCHEMA}.parsed_docs

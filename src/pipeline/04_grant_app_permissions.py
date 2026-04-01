@@ -33,6 +33,7 @@ def main():
         f"GRANT USE_CATALOG ON CATALOG {CATALOG} TO `{APP_SP_ID}`",
         f"GRANT USE_SCHEMA ON SCHEMA {CATALOG}.{SCHEMA} TO `{APP_SP_ID}`",
         f"GRANT SELECT ON TABLE {CATALOG}.{SCHEMA}.doc_summaries_index TO `{APP_SP_ID}`",
+        f"GRANT SELECT ON TABLE {CATALOG}.{SCHEMA}.doc_summaries TO `{APP_SP_ID}`",
         f"GRANT READ_VOLUME ON VOLUME {CATALOG}.{SCHEMA}.raw_docs TO `{APP_SP_ID}`",
     ]
 

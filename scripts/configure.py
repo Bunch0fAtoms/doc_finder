@@ -24,6 +24,9 @@ APP_YAML_TEMPLATE = """command:
   - "8000"
 
 env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+
   - name: VS_ENDPOINT_NAME
     value: "{vs_endpoint_name}"
 
