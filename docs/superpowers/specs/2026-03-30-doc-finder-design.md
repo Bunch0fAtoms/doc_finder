@@ -132,3 +132,4 @@ User types message
 - Automated pipeline trigger when new PDFs are uploaded to the volume
 - Scale testing at 1M documents
 - MLflow experiment tracking: log user inputs and agent responses, with LLM judges evaluating response quality (relevance, correctness, groundedness)
+- Cost dashboard: AI/BI (Lakeview) dashboard reporting DBU and $DBU consumed by the data pipeline jobs and the app's serving/warehouse usage

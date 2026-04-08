@@ -34,7 +34,7 @@ def search_by_keyword(term: str, max_results: int = 5) -> list[dict]:
     cursor.execute(f"""
         SELECT filename, summary
         FROM {CATALOG}.{SCHEMA}.doc_summaries
-        WHERE full_text ILIKE '%{safe_term}%'
+        WHERE plain_text ILIKE '%{safe_term}%'
         LIMIT {max_results}
     """)
     rows = cursor.fetchall()

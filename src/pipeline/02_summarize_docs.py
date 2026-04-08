@@ -43,7 +43,8 @@ def main():
         CREATE OR REPLACE TABLE {CATALOG}.{SCHEMA}.doc_summaries (
             filename STRING,
             summary STRING,
-            full_text STRING
+            full_text STRING,
+            plain_text STRING
         )
         USING DELTA
         TBLPROPERTIES (delta.enableChangeDataFeed = true)
@@ -60,7 +61,16 @@ def main():
                 'databricks-gemini-2-5-pro',
                 CONCAT('{sql_safe_prompt}', LEFT(parsed_text, 100000))
             ) AS summary,
-            parsed_text AS full_text
+            parsed_text AS full_text,
+            CONCAT_WS(' ',
+                TRANSFORM(
+                    FILTER(
+                        FROM_JSON(parsed_text, 'STRUCT<elements:ARRAY<STRUCT<content:STRING, type:STRING>>>').elements,
+                        x -> x.type IN ('text', 'table', 'section_header', 'title')
+                    ),
+                    x -> x.content
+                )
+            ) AS plain_text
         FROM {CATALOG}.{SCHEMA}.parsed_docs
     """)
 

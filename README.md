@@ -10,7 +10,7 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 - **Backend**: FastAPI serving the chat API and PDF files from Unity Catalog volumes
 - **Agent**: `databricks-claude-sonnet-4-6` via Foundation Model API — hybrid search with single LLM call
 - **Vector Search**: Databricks Vector Search in hybrid mode (vector + keyword) over summary embeddings (`databricks-gte-large-en`)
-- **SQL Keyword Search**: SQL `ILIKE` on full extracted text for exact identifiers (SKUs, part numbers, regulatory codes)
+- **SQL Keyword Search**: SQL `ILIKE` on extracted plain text (filtered to text, table, title, and section header elements) for exact identifiers
 - **Deployment**: Databricks Asset Bundles → Databricks App
 
 ### Hybrid Search
@@ -20,13 +20,13 @@ The agent automatically selects the right search strategy based on the user's qu
 The search operates on three layers:
 
 1. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries
-2. **SQL ILIKE** — exact text match on full extracted document text (for SKUs, part numbers, regulatory codes)
+2. **SQL ILIKE** — exact text match on `plain_text` column (extracted content from text, table, title, and section header elements only — excludes bounding boxes and figure descriptions)
 3. **Agent intelligence** — Claude Sonnet 4.6 merges results, prioritizes keyword matches for identifier queries, and explains why the document matches
 
 | Query Type | Example | Search Path |
 |-----------|---------|-------------|
 | **Semantic** | "Find the wound healing brochure" | VS hybrid on summaries |
-| **Exact identifier** | "Find document K243531" | VS hybrid + SQL ILIKE on full text |
+| **Exact identifier** | "Find document K243531" | VS hybrid + SQL ILIKE on plain text |
 | **Mixed** | "FDA clearance for product code JXG" | VS hybrid + SQL ILIKE, merged |
 
 Identifier detection uses regex patterns matching SKUs, part numbers, CFR codes, and alphanumeric product codes.
@@ -37,7 +37,7 @@ Identifier detection uses regex patterns matching SKUs, part numbers, CFR codes,
 User describes document in chat
   → FastAPI receives POST /api/chat
   → Agent detects identifiers in message (regex)
-  → If identifiers found: SQL ILIKE on doc_summaries.full_text (keyword search)
+  → If identifiers found: SQL ILIKE on doc_summaries.plain_text (keyword search)
   → Always: Vector Search hybrid query on doc_summaries.summary (vector + keyword)
   → Results merged, deduplicated by filename
   → Combined results + user message sent to Claude Sonnet 4.6
@@ -51,9 +51,10 @@ User describes document in chat
 ```
 UC Volume (raw PDFs)
   → Step 1: ai_parse_document extracts text from each PDF
-  → Step 2: ai_query (Gemini 2.5 Pro, 100K char input) generates ~200-word summary per document
+  → Step 2: ai_query (Gemini 2.5 Pro, 100K char input) generates ~200-word summary per document;
+           plain_text extracted from content elements (text, table, title, section_header)
   → Step 3: Vector Search Delta Sync index embeds summaries with databricks-gte-large-en
-  → Output: doc_summaries table (filename, summary, full_text) + VS index
+  → Output: doc_summaries table (filename, summary, full_text, plain_text) + VS index
 ```
 
 ## Project Structure
@@ -72,7 +73,7 @@ doc_finder/
 │   │   │   ├── main.py          # FastAPI app (chat + PDF endpoints)
 │   │   │   ├── agent.py         # Hybrid search agent (semantic + keyword)
 │   │   │   ├── vector_search.py # Vector Search query client
-│   │   │   └── keyword_search.py# SQL ILIKE search on full text
+│   │   │   └── keyword_search.py# SQL ILIKE search on plain text
 │   │   └── static/
 │   │       └── index.html       # React frontend (CDN-loaded)
 │   └── pipeline/                # Pipeline scripts (run as DABs job tasks)
@@ -174,7 +175,7 @@ Grants: USE_CATALOG, USE_SCHEMA, SELECT on VS index, SELECT on doc_summaries tab
 
 | Resource | Used By | Purpose |
 |----------|---------|---------|
-| **SQL Warehouse** | Pipeline + App (keyword search) | `ai_parse_document`, `ai_query`, `ILIKE` queries |
+| **SQL Warehouse** | Pipeline + App (keyword search) | `ai_parse_document`, `ai_query`, `ILIKE` on plain text |
 | **Vector Search Endpoint** | App (semantic search) | Similarity search over document summaries |
 | **Foundation Model API** | Pipeline + App | Gemini 2.5 Pro (summarization), Claude Sonnet 4.6 (chat agent) |
 | **Unity Catalog Volume** | Pipeline + App | PDF storage and serving |
