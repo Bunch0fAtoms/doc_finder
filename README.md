@@ -8,39 +8,36 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 
 - **Frontend**: React (CDN-loaded, single HTML file) with split-pane chat + PDF viewer
 - **Backend**: FastAPI serving the chat API and PDF files from Unity Catalog volumes
-- **Agent**: `databricks-claude-sonnet-4-6` via Foundation Model API — hybrid search with single LLM call
+- **Agent**: Gemini 2.5 Pro (query classification) + Claude Sonnet 4.6 (response) via Foundation Model API
 - **Vector Search**: Databricks Vector Search in hybrid mode (vector + keyword) over summary embeddings (`databricks-gte-large-en`)
 - **SQL Keyword Search**: SQL `ILIKE` on extracted plain text (filtered to text, table, title, and section header elements) for exact identifiers
 - **Deployment**: Databricks Asset Bundles → Databricks App
 
 ### Hybrid Search
 
-The agent automatically selects the right search strategy based on the user's query:
+The search operates on four layers:
 
-The search operates on three layers:
-
-1. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries
-2. **SQL ILIKE** — exact text match on `plain_text` column (extracted content from text, table, title, and section header elements only — excludes bounding boxes and figure descriptions)
-3. **Agent intelligence** — Claude Sonnet 4.6 merges results, prioritizes keyword matches for identifier queries, and explains why the document matches
+1. **Query understanding (Gemini 2.5 Pro)** — classifies the user's query, rephrases it for better semantic matching, and extracts keyword terms for exact text search. Replaces brittle regex detection.
+2. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries, using Gemini's rephrased query
+3. **SQL ILIKE** — punctuation-normalized text match on `plain_text` column (extracted content from text, table, title, and section header elements). Strips `: ; - space` from both the search term and document text so `45:28-33` matches `2006;45:28-33`.
+4. **Response (Claude Sonnet 4.6)** — merges results, receives Gemini's reasoning for context, prioritizes keyword matches for identifier queries, and explains why the document matches
 
 | Query Type | Example | Search Path |
 |-----------|---------|-------------|
-| **Semantic** | "Find the wound healing brochure" | VS hybrid on summaries |
-| **Exact identifier** | "Find document K243531" | VS hybrid + SQL ILIKE on plain text |
-| **Mixed** | "FDA clearance for product code JXG" | VS hybrid + SQL ILIKE, merged |
-
-Identifier detection uses regex patterns matching SKUs, part numbers, CFR codes, and alphanumeric product codes.
+| **Semantic** | "Find the wound healing brochure" | Gemini rephrases → VS hybrid on summaries |
+| **Exact identifier** | "Find document K243531" | Gemini extracts terms → VS hybrid + SQL ILIKE |
+| **Citation/partial** | "45:28-33" | Gemini extracts `["45:28-33", "45:28"]` → VS hybrid + normalized SQL ILIKE |
 
 ### Data Flow
 
 ```
 User describes document in chat
   → FastAPI receives POST /api/chat
-  → Agent detects identifiers in message (regex)
-  → If identifiers found: SQL ILIKE on doc_summaries.plain_text (keyword search)
-  → Always: Vector Search hybrid query on doc_summaries.summary (vector + keyword)
+  → Gemini 2.5 Pro classifies query → {semantic_query, keyword_terms, reasoning}
+  → If keyword_terms: punctuation-normalized SQL ILIKE on doc_summaries.plain_text
+  → Always: Vector Search hybrid query on doc_summaries.summary (using rephrased query)
   → Results merged, deduplicated by filename
-  → Combined results + user message sent to Claude Sonnet 4.6
+  → Combined results + reasoning + user message sent to Claude Sonnet 4.6
   → Agent returns explanation + {filename, score}
   → Frontend renders response in chat + loads PDF via GET /api/docs/{filename}
   → PDF served from Unity Catalog volume via REST API
@@ -71,7 +68,7 @@ doc_finder/
 │   │   ├── requirements.txt     # Python dependencies
 │   │   ├── backend/
 │   │   │   ├── main.py          # FastAPI app (chat + PDF endpoints)
-│   │   │   ├── agent.py         # Hybrid search agent (semantic + keyword)
+│   │   │   ├── agent.py         # Hybrid search agent (Gemini classifier + Claude response)
 │   │   │   ├── vector_search.py # Vector Search query client
 │   │   │   └── keyword_search.py# SQL ILIKE search on plain text
 │   │   └── static/
