@@ -185,7 +185,13 @@ def chat(message: str, history: list[dict]) -> dict:
     except (json.JSONDecodeError, ValueError):
         pass
 
-    return {"response": content, "filename": filename, "score": score}
+    # Get trace ID for feedback linkage
+    trace_id = None
+    span = mlflow.get_current_active_span()
+    if span:
+        trace_id = span.request_id
+
+    return {"response": content, "filename": filename, "score": score, "trace_id": trace_id}
 
 
 @mlflow.trace(name="vector_search", span_type=SpanType.RETRIEVER)

@@ -178,6 +178,8 @@ All agent interactions are traced via **MLflow** to the `/Shared/doc-finder` exp
 - **keyword_search** (RETRIEVER) — SQL ILIKE results (if keyword terms were extracted)
 - **OpenAI calls** (auto-traced) — raw LLM request/response for both Haiku and Claude Sonnet
 
+Users can give thumbs up/down on each response. Feedback is stored as a `feedback.thumbs_up` tag on the MLflow trace and synced to Unity Catalog Delta tables for SQL analysis.
+
 View traces in the Databricks workspace under **Experiments → /Shared/doc-finder**.
 
 ## Databricks Resources Used

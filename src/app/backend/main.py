@@ -4,11 +4,16 @@ FastAPI application for Doc Finder.
 Serves the chat API and PDF files from Unity Catalog volumes.
 """
 import os
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
 from pydantic import BaseModel
 from backend.agent import chat as agent_chat
+
+import mlflow
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Doc Finder")
 
@@ -27,6 +32,12 @@ class ChatResponse(BaseModel):
     response: str
     filename: str | None = None
     score: float | None = None
+    trace_id: str | None = None
+
+
+class FeedbackRequest(BaseModel):
+    trace_id: str
+    thumbs_up: bool
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -36,6 +47,19 @@ async def chat_endpoint(req: ChatRequest):
         result = agent_chat(req.message, req.history)
         return ChatResponse(**result)
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/feedback")
+async def feedback_endpoint(req: FeedbackRequest):
+    """Record thumbs up/down feedback on a trace."""
+    try:
+        mlflow.set_tracking_uri("databricks")
+        client = mlflow.MlflowClient()
+        client.set_trace_tag(req.trace_id, "feedback.thumbs_up", str(req.thumbs_up))
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Failed to set feedback tag: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
