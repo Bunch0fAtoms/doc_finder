@@ -18,9 +18,9 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 The search operates on four layers:
 
 1. **Query understanding (Claude Haiku 4.5)** — classifies the user's query, rephrases it for better semantic matching, and extracts keyword terms for exact text search. Uses a fast, non-thinking model to minimize latency.
-2. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries, using Gemini's rephrased query
+2. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries, using the classifier's rephrased query
 3. **SQL ILIKE** — punctuation-normalized text match on `plain_text` column (extracted content from text, table, title, and section header elements). Strips `: ; - space` from both the search term and document text so `45:28-33` matches `2006;45:28-33`.
-4. **Response (Claude Sonnet 4.6)** — merges results, receives Gemini's reasoning for context, prioritizes keyword matches for identifier queries, and explains why the document matches
+4. **Response (Claude Sonnet 4.6)** — merges results, receives the classifier's reasoning for context, prioritizes keyword matches for identifier queries, and explains why the document matches
 
 | Query Type | Example | Search Path |
 |-----------|---------|-------------|
@@ -68,7 +68,7 @@ doc_finder/
 │   │   ├── requirements.txt     # Python dependencies
 │   │   ├── backend/
 │   │   │   ├── main.py          # FastAPI app (chat + PDF endpoints)
-│   │   │   ├── agent.py         # Hybrid search agent (Gemini classifier + Claude response)
+│   │   │   ├── agent.py         # Hybrid search agent (Haiku classifier + Claude response)
 │   │   │   ├── vector_search.py # Vector Search query client
 │   │   │   └── keyword_search.py# SQL ILIKE search on plain text
 │   │   └── static/
@@ -176,7 +176,7 @@ All agent interactions are traced via **MLflow** to the `/Shared/doc-finder` exp
 - **classify_query** (CHAIN) — Claude Haiku 4.5 classification: semantic_query, keyword_terms, reasoning
 - **vector_search** (RETRIEVER) — Vector Search results with scores
 - **keyword_search** (RETRIEVER) — SQL ILIKE results (if keyword terms were extracted)
-- **OpenAI calls** (auto-traced) — raw LLM request/response for both Gemini and Claude
+- **OpenAI calls** (auto-traced) — raw LLM request/response for both Haiku and Claude Sonnet
 
 View traces in the Databricks workspace under **Experiments → /Shared/doc-finder**.
 

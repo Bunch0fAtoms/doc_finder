@@ -2,7 +2,7 @@
 """
 Chat agent using Foundation Model API (databricks-claude-sonnet-4-6).
 Hybrid search: Vector Search for semantic queries + SQL keyword search
-for exact identifiers. Gemini 2.5 Pro classifies queries and extracts
+for exact identifiers. Claude Haiku 4.5 classifies queries and extracts
 search terms, replacing brittle regex detection.
 
 All calls traced via MLflow for observability.
@@ -15,7 +15,7 @@ from openai import OpenAI
 import mlflow
 from mlflow.entities import SpanType
 
-# Auto-trace all OpenAI SDK calls (Gemini + Claude)
+# Auto-trace all OpenAI SDK calls (Haiku + Claude)
 mlflow.openai.autolog()
 
 # Set experiment for trace storage
@@ -76,7 +76,7 @@ def _get_openai_client() -> OpenAI:
 
 @mlflow.trace(name="classify_query", span_type=SpanType.CHAIN)
 def _classify_query(client: OpenAI, message: str) -> dict:
-    """Use Gemini to classify the query and extract search terms."""
+    """Use Haiku to classify the query and extract search terms."""
     try:
         response = client.chat.completions.create(
             model=CLASSIFIER_MODEL,
@@ -87,12 +87,12 @@ def _classify_query(client: OpenAI, message: str) -> dict:
             max_tokens=256,
         )
         raw = response.choices[0].message.content or "{}"
-        logger.info(f"Gemini classifier raw response: {raw}")
+        logger.info(f"Classifier raw response: {raw}")
         # Strip markdown fences if present
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         result = json.loads(raw)
-        logger.info(f"Gemini classification: {result}")
+        logger.info(f"Classification result: {result}")
         return result
     except json.JSONDecodeError as e:
         logger.warning(f"Classifier returned invalid JSON: {e}")
@@ -127,7 +127,7 @@ def chat(message: str, history: list[dict]) -> dict:
     """
     client = _get_openai_client()
 
-    # Step 1: Gemini classifies the query
+    # Step 1: Classify the query
     classification = _classify_query(client, message)
     semantic_query = classification.get("semantic_query", message)
     keyword_terms = classification.get("keyword_terms", [])
