@@ -126,6 +126,17 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
     """
     Process a chat message using hybrid search (semantic + keyword).
     """
+    # Session + version on the trace *metadata* (not tags) so Databricks MLflow UI
+    # shows Session / grouping — see:
+    # https://docs.databricks.com/aws/en/mlflow3/genai/tracing/add-context-to-traces
+    try:
+        meta: dict[str, str] = {"app.version": APP_VERSION}
+        if session_id:
+            meta["mlflow.trace.session"] = session_id
+        mlflow.update_current_trace(metadata=meta)
+    except Exception as e:
+        logger.warning("mlflow.update_current_trace failed: %s", e)
+
     client = _get_openai_client()
 
     # Step 1: Classify the query
@@ -186,18 +197,11 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
     except (json.JSONDecodeError, ValueError):
         pass
 
-    # Get trace ID and set trace-level tags for MLflow UI columns
+    # Trace ID for feedback API (must be MLflow trace id, same as MlflowClient.set_trace_tag)
     trace_id = None
     span = mlflow.get_current_active_span()
-    if span:
-        trace_id = span.request_id
-        try:
-            mlflow_client = mlflow.MlflowClient()
-            if session_id:
-                mlflow_client.set_trace_tag(trace_id, "mlflow.trace.session_id", session_id)
-            mlflow_client.set_trace_tag(trace_id, "mlflow.trace.version", APP_VERSION)
-        except Exception as e:
-            logger.warning(f"Failed to set trace tags: {e}")
+    if span is not None:
+        trace_id = span.trace_id
 
     return {"response": content, "filename": filename, "score": score, "trace_id": trace_id}
 
