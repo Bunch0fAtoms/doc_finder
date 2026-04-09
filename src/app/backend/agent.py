@@ -84,7 +84,7 @@ def _classify_query(client: OpenAI, message: str) -> dict:
                 {"role": "system", "content": CLASSIFIER_PROMPT},
                 {"role": "user", "content": message},
             ],
-            max_tokens=256,
+            max_tokens=2048,
         )
         raw = response.choices[0].message.content or "{}"
         logger.info(f"Gemini classifier raw response: {raw}")
