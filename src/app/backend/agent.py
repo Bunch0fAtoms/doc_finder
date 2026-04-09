@@ -59,13 +59,8 @@ The system searches a library of medical device documents (FDA clearances, clini
 
 Given the user's query, return a JSON object with:
 - "semantic_query": a rephrased version of the query optimized for matching against short document summaries (~200 words). Expand abbreviations, add synonyms, clarify intent.
-- "keyword_terms": a list of specific strings that should be searched as exact text in the full document body. Include identifiers, codes, part numbers, citation references, product names, author names, dates, or any term where an exact substring match would help. Return an empty list if the query is purely conceptual/topical.
+- "keyword_terms": a list of specific strings that should be searched as exact text in the full document body. Any term that is NOT a common English word should go here: identifiers, codes, part numbers, citation references, product/brand names, author names, dates, alphanumeric strings, numbers with punctuation. When in doubt, include the term. Return an empty list ONLY if the query is purely conceptual/topical with no specific terms.
 - "reasoning": one sentence explaining how you interpreted the query.
-
-Examples:
-- Query: "45:28-33" → {"semantic_query": "research article published in journal volume 45 pages 28 to 33", "keyword_terms": ["45:28-33", "45:28"], "reasoning": "User provided a journal citation in volume:pages format."}
-- Query: "Bactiseal catheter" → {"semantic_query": "antimicrobial catheter with Bactiseal technology for hydrocephalus", "keyword_terms": ["Bactiseal"], "reasoning": "Bactiseal is a specific product name worth exact-matching."}
-- Query: "wound healing brochure" → {"semantic_query": "wound healing product brochure collagen dermal regeneration", "keyword_terms": [], "reasoning": "Purely topical query, no specific identifiers to exact-match."}
 
 Return ONLY the JSON object, no other text."""
 
