@@ -29,7 +29,7 @@ from backend.vector_search import search_documents
 from backend.keyword_search import search_by_keyword
 
 MODEL = os.getenv("FOUNDATION_MODEL", "databricks-claude-sonnet-4-6")
-CLASSIFIER_MODEL = "databricks-claude-haiku-4-5"
+CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "databricks-claude-haiku-4-5")
 
 SYSTEM_PROMPT = """You are a document finder assistant for Integra LifeSciences.
 Your job is to help employees find the right document from the company's document library.
@@ -94,13 +94,19 @@ def _classify_query(client: OpenAI, message: str) -> dict:
         result = json.loads(raw)
         logger.info(f"Gemini classification: {result}")
         return result
-    except (json.JSONDecodeError, Exception) as e:
-        logger.warning(f"Gemini classifier failed: {type(e).__name__}: {e}")
-        # Fallback: use original query, no keyword search
+    except json.JSONDecodeError as e:
+        logger.warning(f"Classifier returned invalid JSON: {e}")
         return {
             "semantic_query": message,
             "keyword_terms": [],
-            "reasoning": f"Classifier unavailable, using original query. Error: {type(e).__name__}: {e}",
+            "reasoning": f"Classifier returned invalid JSON: {e}",
+        }
+    except Exception as e:
+        logger.error(f"Classifier call failed: {type(e).__name__}: {e}")
+        return {
+            "semantic_query": message,
+            "keyword_terms": [],
+            "reasoning": f"Classifier unavailable: {type(e).__name__}: {e}",
         }
 
 

@@ -8,7 +8,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
 from pydantic import BaseModel
-from databricks.sdk import WorkspaceClient
 from backend.agent import chat as agent_chat
 
 app = FastAPI(title="Doc Finder")
