@@ -84,8 +84,7 @@ def main():
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True, text=True, cwd=repo_dir
         ).stdout.strip()
-        bundle_name = "doc-finder"
-        variables["app_version"] = f"{bundle_name}/{branch}@{commit}" if commit else "dev"
+        variables["app_version"] = f"{branch}@{commit}" if commit else "dev"
     except Exception:
         variables["app_version"] = "dev"
 

@@ -31,13 +31,5 @@ env:
   - name: MLFLOW_EXPERIMENT
     value: "/Shared/doc-finder"
 
-  # LoggedModel name = "{MLFLOW_APP_NAME}-{sanitized APP_VERSION}" — links traces to Versions tab
-  - name: MLFLOW_APP_NAME
-    value: "doc-finder"
-
   - name: APP_VERSION
-    value: "doc-finder/improving_ux@b68e4ec"
-
-  # Optional: pin traces to an existing LoggedModel id (skips set_active_model in code)
-  # - name: MLFLOW_ACTIVE_MODEL_ID
-  #   value: "<logged-model-uuid>"
+    value: "improving_ux@215ace0"
