@@ -38,6 +38,7 @@ class ChatResponse(BaseModel):
 class FeedbackRequest(BaseModel):
     trace_id: str
     thumbs_up: bool
+    comment: str | None = None
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -57,6 +58,8 @@ async def feedback_endpoint(req: FeedbackRequest):
         mlflow.set_tracking_uri("databricks")
         client = mlflow.MlflowClient()
         client.set_trace_tag(req.trace_id, "feedback.thumbs_up", str(req.thumbs_up))
+        if req.comment:
+            client.set_trace_tag(req.trace_id, "feedback.comment", req.comment)
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Failed to set feedback tag: {e}")

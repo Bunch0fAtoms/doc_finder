@@ -30,6 +30,12 @@
     .feedback-buttons button:hover:not(:disabled) { border-color: #1b3a4b; color: #1b3a4b; }
     .feedback-buttons button.selected { border-color: #1b3a4b; color: #1b3a4b; background: #e8f0f4; }
     .feedback-buttons button:disabled { opacity: 0.4; cursor: default; }
+    .feedback-comment { display: flex; gap: 6px; margin-top: 6px; }
+    .feedback-comment input { flex: 1; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
+    .feedback-comment input:focus { border-color: #1b3a4b; }
+    .feedback-comment button { padding: 6px 12px; background: #1b3a4b; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .feedback-comment button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .feedback-sent { font-size: 12px; color: #888; margin-top: 4px; }
     .chat-input { display: flex; padding: 12px 16px; border-top: 1px solid #e0e0e0; gap: 8px; }
     .chat-input input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
     .chat-input input:focus { border-color: #1b3a4b; }
@@ -52,7 +58,47 @@
   <script>
     const e = React.createElement;
 
-    function ChatPanel({ messages, onSendMessage, onFeedback, feedback, isLoading }) {
+    function FeedbackWidget({ traceId, feedback, onVote, onSubmit }) {
+      const [comment, setComment] = React.useState("");
+      const fb = feedback[traceId];
+
+      if (!traceId) return null;
+
+      // Already submitted
+      if (fb && fb.phase === "submitted") {
+        return e("div", { className: "feedback-sent" },
+          (fb.thumbsUp ? "\u{1F44D}" : "\u{1F44E}") + " Feedback submitted" + (comment ? "" : "")
+        );
+      }
+
+      // Voted, show comment box
+      if (fb && fb.phase === "voted") {
+        return e("div", null,
+          e("div", { className: "feedback-buttons" },
+            e("button", { disabled: true, className: fb.thumbsUp ? "selected" : "" }, "\u{1F44D}"),
+            e("button", { disabled: true, className: !fb.thumbsUp ? "selected" : "" }, "\u{1F44E}")
+          ),
+          e("div", { className: "feedback-comment" },
+            e("input", {
+              type: "text",
+              value: comment,
+              onChange: (ev) => setComment(ev.target.value),
+              placeholder: "Add a comment (optional)...",
+              onKeyDown: (ev) => { if (ev.key === "Enter") onSubmit(traceId, comment); }
+            }),
+            e("button", { onClick: () => onSubmit(traceId, comment) }, "Send")
+          )
+        );
+      }
+
+      // Not voted yet
+      return e("div", { className: "feedback-buttons" },
+        e("button", { onClick: () => onVote(traceId, true) }, "\u{1F44D}"),
+        e("button", { onClick: () => onVote(traceId, false) }, "\u{1F44E}")
+      );
+    }
+
+    function ChatPanel({ messages, onSendMessage, onVote, onSubmitFeedback, feedback, isLoading }) {
       const [input, setInput] = React.useState("");
       const messagesEndRef = React.useRef(null);
 
@@ -92,18 +138,12 @@
               e("div", { className: "message-content" },
                 msg.role === "assistant" ? stripJsonBlock(msg.content) : msg.content
               ),
-              msg.role === "assistant" && msg.trace_id && e("div", { className: "feedback-buttons" },
-                e("button", {
-                  onClick: () => onFeedback(msg.trace_id, true),
-                  disabled: feedback[msg.trace_id] !== undefined,
-                  className: feedback[msg.trace_id] === true ? "selected" : ""
-                }, "\u{1F44D}"),
-                e("button", {
-                  onClick: () => onFeedback(msg.trace_id, false),
-                  disabled: feedback[msg.trace_id] !== undefined,
-                  className: feedback[msg.trace_id] === false ? "selected" : ""
-                }, "\u{1F44E}")
-              )
+              msg.role === "assistant" && e(FeedbackWidget, {
+                traceId: msg.trace_id,
+                feedback: feedback,
+                onVote: onVote,
+                onSubmit: onSubmitFeedback
+              })
             )
           ),
           isLoading && e("div", { className: "chat-message assistant" },
@@ -147,16 +187,22 @@
       const [messages, setMessages] = React.useState([]);
       const [currentDoc, setCurrentDoc] = React.useState(null);
       const [isLoading, setIsLoading] = React.useState(false);
+      // feedback state: { [traceId]: { thumbsUp: bool, phase: "voted"|"submitted" } }
       const [feedback, setFeedback] = React.useState({});
 
-      async function handleFeedback(traceId, thumbsUp) {
-        setFeedback(prev => ({ ...prev, [traceId]: thumbsUp }));
+      function handleVote(traceId, thumbsUp) {
+        setFeedback(prev => ({ ...prev, [traceId]: { thumbsUp, phase: "voted" } }));
+      }
+
+      async function handleSubmitFeedback(traceId, comment) {
+        const fb = feedback[traceId];
+        setFeedback(prev => ({ ...prev, [traceId]: { ...fb, phase: "submitted" } }));
         try {
           await fetch("/api/feedback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ trace_id: traceId, thumbs_up: thumbsUp })
+            body: JSON.stringify({ trace_id: traceId, thumbs_up: fb.thumbsUp, comment: comment || null })
           });
         } catch (err) {
           console.error("Failed to send feedback:", err);
@@ -201,7 +247,7 @@
       }
 
       return e("div", { className: "app" },
-        e(ChatPanel, { messages, onSendMessage: handleSendMessage, onFeedback: handleFeedback, feedback, isLoading }),
+        e(ChatPanel, { messages, onSendMessage: handleSendMessage, onVote: handleVote, onSubmitFeedback: handleSubmitFeedback, feedback, isLoading }),
         e(PdfViewer, { filename: currentDoc })
       );
     }
