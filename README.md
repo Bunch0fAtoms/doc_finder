@@ -129,11 +129,13 @@ python scripts/configure.py dev
 ### 2. Deploy everything via DABs
 
 ```bash
-databricks bundle validate -t dev
+python scripts/configure.py dev              # Generate app.yaml (stamps version)
 databricks bundle deploy -t dev
 databricks bundle run data_pipeline -t dev   # Parse → Summarize → Index
 databricks bundle run doc_finder -t dev      # Start app
 ```
+
+**Note:** Always run `configure.py` before `bundle deploy` — it generates `app.yaml` with the current git commit for MLflow version tracking.
 
 ### 3. Grant permissions
 
