@@ -130,7 +130,7 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
     # shows Session / grouping — see:
     # https://docs.databricks.com/aws/en/mlflow3/genai/tracing/add-context-to-traces
     try:
-        meta: dict[str, str] = {"app.version": APP_VERSION}
+        meta: dict[str, str] = {"mlflow.modelId": APP_VERSION}
         if session_id:
             meta["mlflow.trace.session"] = session_id
         mlflow.update_current_trace(metadata=meta)

@@ -73,14 +73,19 @@ def main():
 
     variables = get_bundle_variables(target)
 
-    # Get git short hash for app version
+    # Build app version: bundle-name/branch@commit
     try:
-        git_result = subprocess.run(
+        repo_dir = os.path.dirname(os.path.dirname(__file__))
+        commit = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True,
-            cwd=os.path.dirname(os.path.dirname(__file__))
-        )
-        variables["app_version"] = git_result.stdout.strip() or "dev"
+            capture_output=True, text=True, cwd=repo_dir
+        ).stdout.strip()
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, cwd=repo_dir
+        ).stdout.strip()
+        bundle_name = "doc-finder"
+        variables["app_version"] = f"{bundle_name}/{branch}@{commit}" if commit else "dev"
     except Exception:
         variables["app_version"] = "dev"
 

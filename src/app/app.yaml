@@ -32,4 +32,4 @@ env:
     value: "/Shared/doc-finder"
 
   - name: APP_VERSION
-    value: "691e9f8"
+    value: "doc-finder/improving_ux@517991f"
