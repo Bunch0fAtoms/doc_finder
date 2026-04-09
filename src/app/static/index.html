@@ -187,6 +187,7 @@
       const [messages, setMessages] = React.useState([]);
       const [currentDoc, setCurrentDoc] = React.useState(null);
       const [isLoading, setIsLoading] = React.useState(false);
+      const sessionId = React.useMemo(() => crypto.randomUUID(), []);
       // feedback state: { [traceId]: { thumbsUp: bool, phase: "voted"|"submitted" } }
       const [feedback, setFeedback] = React.useState({});
 
@@ -222,7 +223,8 @@
             credentials: "include",
             body: JSON.stringify({
               message: message,
-              history: updated.map(m => ({ role: m.role, content: m.content }))
+              history: updated.map(m => ({ role: m.role, content: m.content })),
+              session_id: sessionId
             })
           });
           if (!resp.ok) throw new Error("Chat request failed");

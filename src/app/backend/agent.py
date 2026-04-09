@@ -30,6 +30,7 @@ from backend.keyword_search import search_by_keyword
 
 MODEL = os.getenv("FOUNDATION_MODEL", "databricks-claude-sonnet-4-6")
 CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "databricks-claude-haiku-4-5")
+APP_VERSION = os.getenv("APP_VERSION", "dev")
 
 SYSTEM_PROMPT = """You are a document finder assistant for Integra LifeSciences.
 Your job is to help employees find the right document from the company's document library.
@@ -121,10 +122,17 @@ def _deduplicate_results(results: list[dict]) -> list[dict]:
 
 
 @mlflow.trace(name="chat", span_type=SpanType.AGENT)
-def chat(message: str, history: list[dict]) -> dict:
+def chat(message: str, history: list[dict], session_id: str | None = None) -> dict:
     """
     Process a chat message using hybrid search (semantic + keyword).
     """
+    # Set trace metadata for MLflow UI columns
+    span = mlflow.get_current_active_span()
+    if span:
+        if session_id:
+            span.set_attribute("mlflow.trace.session_id", session_id)
+        span.set_attribute("mlflow.trace.version", APP_VERSION)
+
     client = _get_openai_client()
 
     # Step 1: Classify the query

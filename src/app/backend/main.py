@@ -26,6 +26,7 @@ VOLUME_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}"
 class ChatRequest(BaseModel):
     message: str
     history: list[dict] = []
+    session_id: str | None = None
 
 
 class ChatResponse(BaseModel):
@@ -45,7 +46,7 @@ class FeedbackRequest(BaseModel):
 async def chat_endpoint(req: ChatRequest):
     """Process a chat message through the document finder agent."""
     try:
-        result = agent_chat(req.message, req.history)
+        result = agent_chat(req.message, req.history, session_id=req.session_id)
         return ChatResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

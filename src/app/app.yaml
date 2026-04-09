@@ -30,3 +30,6 @@ env:
 
   - name: MLFLOW_EXPERIMENT
     value: "/Shared/doc-finder"
+
+  - name: APP_VERSION
+    value: "691e9f8"
