@@ -168,12 +168,25 @@ Grants: USE_CATALOG, USE_SCHEMA, SELECT on VS index, SELECT on doc_summaries tab
    ```
    This re-parses all PDFs, regenerates summaries, and syncs the VS index.
 
+## Observability
+
+All agent interactions are traced via **MLflow** to the `/Shared/doc-finder` experiment. Each request produces a trace with spans for:
+
+- **chat** (AGENT) — top-level span with user message, response, and extracted filename
+- **classify_query** (CHAIN) — Gemini 2.5 Pro classification: semantic_query, keyword_terms, reasoning
+- **vector_search** (RETRIEVER) — Vector Search results with scores
+- **keyword_search** (RETRIEVER) — SQL ILIKE results (if keyword terms were extracted)
+- **OpenAI calls** (auto-traced) — raw LLM request/response for both Gemini and Claude
+
+View traces in the Databricks workspace under **Experiments → /Shared/doc-finder**.
+
 ## Databricks Resources Used
 
 | Resource | Used By | Purpose |
 |----------|---------|---------|
 | **SQL Warehouse** | Pipeline + App (keyword search) | `ai_parse_document`, `ai_query`, `ILIKE` on plain text |
 | **Vector Search Endpoint** | App (semantic search) | Similarity search over document summaries |
-| **Foundation Model API** | Pipeline + App | Gemini 2.5 Pro (summarization), Claude Sonnet 4.6 (chat agent) |
+| **Foundation Model API** | Pipeline + App | Gemini 2.5 Pro (classification + summarization), Claude Sonnet 4.6 (chat agent) |
 | **Unity Catalog Volume** | Pipeline + App | PDF storage and serving |
+| **MLflow Experiment** | App | Trace storage for all agent interactions (`/Shared/doc-finder`) |
 | **Databricks App** | End users | FastAPI + React frontend |

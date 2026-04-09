@@ -44,6 +44,9 @@ env:
 
   - name: FOUNDATION_MODEL
     value: "{foundation_model}"
+
+  - name: MLFLOW_EXPERIMENT
+    value: "/Shared/doc-finder"
 """
 
 

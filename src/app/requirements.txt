@@ -4,4 +4,5 @@ databricks-sdk>=0.38.0
 databricks-sql-connector>=3.0.0
 databricks-vectorsearch>=0.40
 openai>=1.0.0
+mlflow[databricks]>=3.5.0
 pydantic>=2.0.0

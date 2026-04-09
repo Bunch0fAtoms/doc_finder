@@ -4,10 +4,26 @@ Chat agent using Foundation Model API (databricks-claude-sonnet-4-6).
 Hybrid search: Vector Search for semantic queries + SQL keyword search
 for exact identifiers. Gemini 2.5 Pro classifies queries and extracts
 search terms, replacing brittle regex detection.
+
+All calls traced via MLflow for observability.
 """
 import json
+import logging
 import os
 from openai import OpenAI
+
+import mlflow
+from mlflow.entities import SpanType
+
+# Auto-trace all OpenAI SDK calls (Gemini + Claude)
+mlflow.openai.autolog()
+
+# Set experiment for trace storage
+MLFLOW_EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "/Shared/doc-finder")
+mlflow.set_tracking_uri("databricks")
+mlflow.set_experiment(MLFLOW_EXPERIMENT)
+
+logger = logging.getLogger(__name__)
 from databricks.sdk.core import Config
 from backend.vector_search import search_documents
 from backend.keyword_search import search_by_keyword
@@ -63,6 +79,7 @@ def _get_openai_client() -> OpenAI:
     )
 
 
+@mlflow.trace(name="classify_query", span_type=SpanType.CHAIN)
 def _classify_query(client: OpenAI, message: str) -> dict:
     """Use Gemini to classify the query and extract search terms."""
     try:
@@ -75,16 +92,20 @@ def _classify_query(client: OpenAI, message: str) -> dict:
             max_tokens=256,
         )
         raw = response.choices[0].message.content or "{}"
+        logger.info(f"Gemini classifier raw response: {raw}")
         # Strip markdown fences if present
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-        return json.loads(raw)
-    except (json.JSONDecodeError, Exception):
+        result = json.loads(raw)
+        logger.info(f"Gemini classification: {result}")
+        return result
+    except (json.JSONDecodeError, Exception) as e:
+        logger.warning(f"Gemini classifier failed: {type(e).__name__}: {e}")
         # Fallback: use original query, no keyword search
         return {
             "semantic_query": message,
             "keyword_terms": [],
-            "reasoning": "Classifier unavailable, using original query.",
+            "reasoning": f"Classifier unavailable, using original query. Error: {type(e).__name__}: {e}",
         }
 
 
@@ -98,6 +119,7 @@ def _deduplicate_results(results: list[dict]) -> list[dict]:
     return list(seen.values())
 
 
+@mlflow.trace(name="chat", span_type=SpanType.AGENT)
 def chat(message: str, history: list[dict]) -> dict:
     """
     Process a chat message using hybrid search (semantic + keyword).
@@ -111,8 +133,8 @@ def chat(message: str, history: list[dict]) -> dict:
     reasoning = classification.get("reasoning", "")
 
     # Step 2: Run searches
-    semantic_results = search_documents(semantic_query)
-    keyword_results = search_by_keyword(keyword_terms)
+    semantic_results = _search_semantic(semantic_query)
+    keyword_results = _search_keyword(keyword_terms)
 
     # Step 3: Merge and deduplicate
     all_results = _deduplicate_results(keyword_results + semantic_results)
@@ -163,3 +185,15 @@ def chat(message: str, history: list[dict]) -> dict:
         pass
 
     return {"response": content, "filename": filename, "score": score}
+
+
+@mlflow.trace(name="vector_search", span_type=SpanType.RETRIEVER)
+def _search_semantic(query: str) -> list[dict]:
+    """Traced wrapper for Vector Search."""
+    return search_documents(query)
+
+
+@mlflow.trace(name="keyword_search", span_type=SpanType.RETRIEVER)
+def _search_keyword(terms: list[str]) -> list[dict]:
+    """Traced wrapper for SQL keyword search."""
+    return search_by_keyword(terms)
