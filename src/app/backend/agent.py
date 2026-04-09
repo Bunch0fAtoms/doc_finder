@@ -126,13 +126,6 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
     """
     Process a chat message using hybrid search (semantic + keyword).
     """
-    # Set trace metadata for MLflow UI columns
-    span = mlflow.get_current_active_span()
-    if span:
-        if session_id:
-            span.set_attribute("mlflow.trace.session_id", session_id)
-        span.set_attribute("mlflow.trace.version", APP_VERSION)
-
     client = _get_openai_client()
 
     # Step 1: Classify the query
@@ -193,11 +186,18 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
     except (json.JSONDecodeError, ValueError):
         pass
 
-    # Get trace ID for feedback linkage
+    # Get trace ID and set trace-level tags for MLflow UI columns
     trace_id = None
     span = mlflow.get_current_active_span()
     if span:
         trace_id = span.request_id
+        try:
+            mlflow_client = mlflow.MlflowClient()
+            if session_id:
+                mlflow_client.set_trace_tag(trace_id, "mlflow.trace.session_id", session_id)
+            mlflow_client.set_trace_tag(trace_id, "mlflow.trace.version", APP_VERSION)
+        except Exception as e:
+            logger.warning(f"Failed to set trace tags: {e}")
 
     return {"response": content, "filename": filename, "score": score, "trace_id": trace_id}
 
