@@ -178,7 +178,7 @@ All agent interactions are traced via **MLflow** to the `/Shared/doc-finder` exp
 - **keyword_search** (RETRIEVER) — SQL ILIKE results (if keyword terms were extracted)
 - **OpenAI calls** (auto-traced) — raw LLM request/response for both Haiku and Claude Sonnet
 
-Users can give thumbs up/down on each response with an optional comment. Feedback is stored as `feedback.thumbs_up` and `feedback.comment` tags on the MLflow trace. Each trace also includes a **session ID** (groups multi-turn conversations) and **version** (git commit hash at deploy time).
+Users can give thumbs up/down on each response with an optional comment. Feedback is stored as `feedback.thumbs_up` and `feedback.comment` tags on the MLflow trace. Each trace includes a **session ID** (`mlflow.trace.session`, from the client) when provided. **Version** in the UI comes from an **MLflow LoggedModel**: on app startup we call `mlflow.set_active_model(name=<MLFLOW_APP_NAME>-<sanitized APP_VERSION>)`, or you can set **`MLFLOW_ACTIVE_MODEL_ID`** to an existing LoggedModel id instead (see [Track application versions with MLflow](https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/version-tracking/track-application-versions-with-mlflow)).
 
 View traces in the Databricks workspace under **Experiments → /Shared/doc-finder**.
 

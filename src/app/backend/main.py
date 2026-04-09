@@ -5,17 +5,54 @@ Serves the chat API and PDF files from Unity Catalog volumes.
 """
 import os
 import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
 from pydantic import BaseModel
-from backend.agent import chat as agent_chat
-
 import mlflow
+
+from backend.agent import chat as agent_chat
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Doc Finder")
+
+def _init_mlflow_logged_model() -> None:
+    """
+    Link traces to an MLflow LoggedModel so the Version column resolves in the UI.
+
+    Prefer MLFLOW_ACTIVE_MODEL_ID when a fixed model id is injected at deploy time.
+    Otherwise call mlflow.set_active_model(name=...) once per process — see:
+    https://docs.databricks.com/aws/en/mlflow3/genai/prompt-version-mgmt/version-tracking/track-application-versions-with-mlflow
+    """
+    mlflow.set_tracking_uri("databricks")
+    mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT", "/Shared/doc-finder"))
+
+    if os.getenv("MLFLOW_ACTIVE_MODEL_ID", "").strip():
+        logger.info("MLflow trace version: using MLFLOW_ACTIVE_MODEL_ID from environment")
+        return
+
+    app_name = os.getenv("MLFLOW_APP_NAME", "doc-finder")
+    version = os.getenv("APP_VERSION", "dev")
+    # LoggedModel names must be filesystem/registry safe
+    safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in version)
+    name = f"{app_name}-{safe}"
+    try:
+        active = mlflow.set_active_model(name=name)
+        mid = getattr(active, "model_id", active)
+        logger.info("MLflow LoggedModel active name=%r model_id=%r", name, mid)
+    except Exception:
+        logger.exception("mlflow.set_active_model failed; Version column may show Error")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _init_mlflow_logged_model()
+    yield
+
+
+app = FastAPI(title="Doc Finder", lifespan=lifespan)
 
 CATALOG = os.getenv("CATALOG", "morgan_stable_classic_6df0yw_catalog")
 SCHEMA = os.getenv("SCHEMA", "doc_finder")

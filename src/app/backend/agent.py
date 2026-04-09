@@ -30,7 +30,6 @@ from backend.keyword_search import search_by_keyword
 
 MODEL = os.getenv("FOUNDATION_MODEL", "databricks-claude-sonnet-4-6")
 CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "databricks-claude-haiku-4-5")
-APP_VERSION = os.getenv("APP_VERSION", "dev")
 
 SYSTEM_PROMPT = """You are a document finder assistant for Integra LifeSciences.
 Your job is to help employees find the right document from the company's document library.
@@ -126,14 +125,14 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
     """
     Process a chat message using hybrid search (semantic + keyword).
     """
-    # Session + version on the trace *metadata* (not tags) so Databricks MLflow UI
-    # shows Session / grouping — see:
+    # Session on trace metadata (Session column). Version comes from LoggedModel via
+    # mlflow.set_active_model in main.py lifespan (or MLFLOW_ACTIVE_MODEL_ID).
     # https://docs.databricks.com/aws/en/mlflow3/genai/tracing/add-context-to-traces
     try:
-        meta: dict[str, str] = {"mlflow.modelId": APP_VERSION}
         if session_id:
-            meta["mlflow.trace.session"] = session_id
-        mlflow.update_current_trace(metadata=meta)
+            mlflow.update_current_trace(
+                metadata={"mlflow.trace.session": session_id},
+            )
     except Exception as e:
         logger.warning("mlflow.update_current_trace failed: %s", e)
 
