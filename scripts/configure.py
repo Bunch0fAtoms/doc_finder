@@ -48,8 +48,8 @@ env:
   - name: MLFLOW_EXPERIMENT
     value: "/Shared/doc-finder"
 
-  - name: APP_VERSION
-    value: "{app_version}"
+  - name: MLFLOW_APP_NAME
+    value: "doc-finder-dev"
 """
 
 
@@ -72,22 +72,6 @@ def main():
     print(f"Configuring app.yaml for target: {target_label}")
 
     variables = get_bundle_variables(target)
-
-    # Build app version: bundle-name/branch@commit
-    try:
-        repo_dir = os.path.dirname(os.path.dirname(__file__))
-        commit = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, cwd=repo_dir
-        ).stdout.strip()
-        branch = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, cwd=repo_dir
-        ).stdout.strip()
-        variables["app_version"] = f"{branch}@{commit}" if commit else "dev"
-    except Exception:
-        variables["app_version"] = "dev"
-
     content = APP_YAML_TEMPLATE.format(**variables)
 
     output_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "src", "app", "app.yaml")

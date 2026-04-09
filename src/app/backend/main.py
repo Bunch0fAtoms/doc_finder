@@ -18,6 +18,22 @@ from backend.agent import chat as agent_chat
 logger = logging.getLogger(__name__)
 
 
+def _get_deployment_version() -> str:
+    """Get a version string from the Databricks App deployment ID, or fall back to APP_VERSION."""
+    # Try to get deployment ID from the Apps API
+    try:
+        from databricks.sdk import WorkspaceClient
+        w = WorkspaceClient()
+        app_name = os.getenv("MLFLOW_APP_NAME", "doc-finder-dev")
+        app = w.apps.get(app_name)
+        deploy_id = app.active_deployment.deployment_id
+        return f"{app_name}-{deploy_id[:12]}"
+    except Exception:
+        pass
+    # Fall back to APP_VERSION env var (set by configure.py)
+    return os.getenv("APP_VERSION", "dev")
+
+
 def _init_mlflow_logged_model() -> None:
     """
     Link traces to an MLflow LoggedModel so the Version column resolves in the UI.
@@ -33,15 +49,13 @@ def _init_mlflow_logged_model() -> None:
         logger.info("MLflow trace version: using MLFLOW_ACTIVE_MODEL_ID from environment")
         return
 
-    app_name = os.getenv("MLFLOW_APP_NAME", "doc-finder")
-    version = os.getenv("APP_VERSION", "dev")
+    version = _get_deployment_version()
     # LoggedModel names must be filesystem/registry safe
     safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in version)
-    name = f"{app_name}-{safe}"
     try:
-        active = mlflow.set_active_model(name=name)
+        active = mlflow.set_active_model(name=safe)
         mid = getattr(active, "model_id", active)
-        logger.info("MLflow LoggedModel active name=%r model_id=%r", name, mid)
+        logger.info("MLflow LoggedModel active name=%r model_id=%r", safe, mid)
     except Exception:
         logger.exception("mlflow.set_active_model failed; Version column may show Error")
 

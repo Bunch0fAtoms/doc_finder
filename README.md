@@ -129,13 +129,10 @@ python scripts/configure.py dev
 ### 2. Deploy everything via DABs
 
 ```bash
-python scripts/configure.py dev              # Generate app.yaml (stamps version)
 databricks bundle deploy -t dev
 databricks bundle run data_pipeline -t dev   # Parse → Summarize → Index
 databricks bundle run doc_finder -t dev      # Start app
 ```
-
-**Note:** Always run `configure.py` before `bundle deploy` — it generates `app.yaml` with the current git commit for MLflow version tracking.
 
 ### 3. Grant permissions
 
@@ -183,7 +180,7 @@ All agent interactions are traced via **MLflow** to the `/Shared/doc-finder` exp
 Users can give thumbs up/down on each response with an optional comment. Feedback is stored as `feedback.thumbs_up` and `feedback.comment` tags on the MLflow trace.
 
 - **Session** — frontend generates a UUID per browser tab, set via `mlflow.trace.session` metadata. Groups multi-turn conversations.
-- **Version** — set via MLflow LoggedModel on app startup. Format: `doc-finder-<branch>-<commit>` (e.g., `doc-finder-main-fdf2040`). Generated from `APP_VERSION` env var by `scripts/configure.py`.
+- **Version** — set via MLflow LoggedModel on app startup. Automatically derived from the Databricks App deployment ID (no manual step needed).
 
 View traces in the Databricks workspace under **Experiments → /Shared/doc-finder**.
 

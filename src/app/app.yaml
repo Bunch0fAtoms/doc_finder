@@ -31,5 +31,5 @@ env:
   - name: MLFLOW_EXPERIMENT
     value: "/Shared/doc-finder"
 
-  - name: APP_VERSION
-    value: "improving_ux@215ace0"
+  - name: MLFLOW_APP_NAME
+    value: "doc-finder-dev"
