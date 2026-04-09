@@ -29,7 +29,7 @@ from backend.vector_search import search_documents
 from backend.keyword_search import search_by_keyword
 
 MODEL = os.getenv("FOUNDATION_MODEL", "databricks-claude-sonnet-4-6")
-CLASSIFIER_MODEL = "databricks-gemini-2-5-pro"
+CLASSIFIER_MODEL = "databricks-claude-haiku-4-5"
 
 SYSTEM_PROMPT = """You are a document finder assistant for Integra LifeSciences.
 Your job is to help employees find the right document from the company's document library.
@@ -84,7 +84,7 @@ def _classify_query(client: OpenAI, message: str) -> dict:
                 {"role": "system", "content": CLASSIFIER_PROMPT},
                 {"role": "user", "content": message},
             ],
-            max_tokens=2048,
+            max_tokens=256,
         )
         raw = response.choices[0].message.content or "{}"
         logger.info(f"Gemini classifier raw response: {raw}")

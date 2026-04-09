@@ -8,7 +8,7 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 
 - **Frontend**: React (CDN-loaded, single HTML file) with split-pane chat + PDF viewer
 - **Backend**: FastAPI serving the chat API and PDF files from Unity Catalog volumes
-- **Agent**: Gemini 2.5 Pro (query classification) + Claude Sonnet 4.6 (response) via Foundation Model API
+- **Agent**: Claude Haiku 4.5 (query classification) + Claude Sonnet 4.6 (response) via Foundation Model API
 - **Vector Search**: Databricks Vector Search in hybrid mode (vector + keyword) over summary embeddings (`databricks-gte-large-en`)
 - **SQL Keyword Search**: SQL `ILIKE` on extracted plain text (filtered to text, table, title, and section header elements) for exact identifiers
 - **Deployment**: Databricks Asset Bundles → Databricks App
@@ -17,23 +17,23 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 
 The search operates on four layers:
 
-1. **Query understanding (Gemini 2.5 Pro)** — classifies the user's query, rephrases it for better semantic matching, and extracts keyword terms for exact text search. Replaces brittle regex detection.
+1. **Query understanding (Claude Haiku 4.5)** — classifies the user's query, rephrases it for better semantic matching, and extracts keyword terms for exact text search. Uses a fast, non-thinking model to minimize latency.
 2. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries, using Gemini's rephrased query
 3. **SQL ILIKE** — punctuation-normalized text match on `plain_text` column (extracted content from text, table, title, and section header elements). Strips `: ; - space` from both the search term and document text so `45:28-33` matches `2006;45:28-33`.
 4. **Response (Claude Sonnet 4.6)** — merges results, receives Gemini's reasoning for context, prioritizes keyword matches for identifier queries, and explains why the document matches
 
 | Query Type | Example | Search Path |
 |-----------|---------|-------------|
-| **Semantic** | "Find the wound healing brochure" | Gemini rephrases → VS hybrid on summaries |
-| **Exact identifier** | "Find document K243531" | Gemini extracts terms → VS hybrid + SQL ILIKE |
-| **Citation/partial** | "45:28-33" | Gemini extracts `["45:28-33", "45:28"]` → VS hybrid + normalized SQL ILIKE |
+| **Semantic** | "Find the wound healing brochure" | Haiku rephrases → VS hybrid on summaries |
+| **Exact identifier** | "Find document K243531" | Haiku extracts terms → VS hybrid + SQL ILIKE |
+| **Citation/partial** | "45:28-33" | Haiku extracts keyword terms → VS hybrid + normalized SQL ILIKE |
 
 ### Data Flow
 
 ```
 User describes document in chat
   → FastAPI receives POST /api/chat
-  → Gemini 2.5 Pro classifies query → {semantic_query, keyword_terms, reasoning}
+  → Claude Haiku 4.5 classifies query → {semantic_query, keyword_terms, reasoning}
   → If keyword_terms: punctuation-normalized SQL ILIKE on doc_summaries.plain_text
   → Always: Vector Search hybrid query on doc_summaries.summary (using rephrased query)
   → Results merged, deduplicated by filename
@@ -173,7 +173,7 @@ Grants: USE_CATALOG, USE_SCHEMA, SELECT on VS index, SELECT on doc_summaries tab
 All agent interactions are traced via **MLflow** to the `/Shared/doc-finder` experiment. Each request produces a trace with spans for:
 
 - **chat** (AGENT) — top-level span with user message, response, and extracted filename
-- **classify_query** (CHAIN) — Gemini 2.5 Pro classification: semantic_query, keyword_terms, reasoning
+- **classify_query** (CHAIN) — Claude Haiku 4.5 classification: semantic_query, keyword_terms, reasoning
 - **vector_search** (RETRIEVER) — Vector Search results with scores
 - **keyword_search** (RETRIEVER) — SQL ILIKE results (if keyword terms were extracted)
 - **OpenAI calls** (auto-traced) — raw LLM request/response for both Gemini and Claude
@@ -186,7 +186,7 @@ View traces in the Databricks workspace under **Experiments → /Shared/doc-find
 |----------|---------|---------|
 | **SQL Warehouse** | Pipeline + App (keyword search) | `ai_parse_document`, `ai_query`, `ILIKE` on plain text |
 | **Vector Search Endpoint** | App (semantic search) | Similarity search over document summaries |
-| **Foundation Model API** | Pipeline + App | Gemini 2.5 Pro (classification + summarization), Claude Sonnet 4.6 (chat agent) |
+| **Foundation Model API** | Pipeline + App | Claude Haiku 4.5 (query classification), Gemini 2.5 Pro (summarization), Claude Sonnet 4.6 (chat agent) |
 | **Unity Catalog Volume** | Pipeline + App | PDF storage and serving |
 | **MLflow Experiment** | App | Trace storage for all agent interactions (`/Shared/doc-finder`) |
 | **Databricks App** | End users | FastAPI + React frontend |
