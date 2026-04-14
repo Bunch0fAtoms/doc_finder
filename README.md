@@ -6,11 +6,14 @@ Deployed via **Databricks Asset Bundles (DABs)** for multi-environment portabili
 
 ## Architecture
 
-- **Frontend**: React (CDN-loaded, single HTML file) with split-pane chat + PDF viewer
-- **Backend**: FastAPI serving the chat API and PDF files from Unity Catalog volumes
-- **Agent**: Claude Haiku 4.5 (query classification) + Claude Sonnet 4.6 (response) via Foundation Model API
+![System Architecture](docs/architecture.png)
+
+- **Databricks App**: React frontend (CDN-loaded) + FastAPI backend, deployed as a single Databricks App
+- **FastAPI Backend**: Orchestrates all calls — query classification, search dispatch, response generation, and PDF serving
+- **Claude Haiku 4.5**: Query classifier — returns semantic query, keyword terms, and reasoning to FastAPI
+- **Claude Sonnet 4.6**: Response generator — receives merged search results from FastAPI, returns answer + filename
 - **Vector Search**: Databricks Vector Search in hybrid mode (vector + keyword) over summary embeddings (`databricks-gte-large-en`)
-- **SQL Keyword Search**: SQL `ILIKE` on extracted plain text (filtered to text, table, title, and section header elements) for exact identifiers
+- **SQL Keyword Search**: Punctuation-normalized `ILIKE` on the `doc_summaries.plain_text` column via SQL Warehouse
 - **Deployment**: Databricks Asset Bundles → Databricks App
 
 ### Hybrid Search
@@ -20,7 +23,7 @@ The search operates on four layers:
 1. **Query understanding (Claude Haiku 4.5)** — classifies the user's query, rephrases it for better semantic matching, and extracts keyword terms for exact text search. Uses a fast, non-thinking model to minimize latency.
 2. **Vector Search (hybrid mode)** — combines vector similarity + keyword matching within the VS index on document summaries, using the classifier's rephrased query
 3. **SQL ILIKE** — punctuation-normalized text match on `plain_text` column (extracted content from text, table, title, and section header elements). Strips `: ; - space` from both the search term and document text so `45:28-33` matches `2006;45:28-33`.
-4. **Response (Claude Sonnet 4.6)** — merges results, receives the classifier's reasoning for context, prioritizes keyword matches for identifier queries, and explains why the document matches
+4. **Response (Claude Sonnet 4.6)** — receives merged results from FastAPI along with the classifier's reasoning for context, prioritizes keyword matches for identifier queries, and explains why the document matches
 
 | Query Type | Example | Search Path |
 |-----------|---------|-------------|
@@ -56,15 +59,17 @@ The pipeline extracts only **text, table, title, and section header** elements f
 
 ```
 User describes document in chat
-  → FastAPI receives POST /api/chat
-  → Claude Haiku 4.5 classifies query → {semantic_query, keyword_terms, reasoning}
-  → If keyword_terms: punctuation-normalized SQL ILIKE on doc_summaries.plain_text
-  → Always: Vector Search hybrid query on doc_summaries.summary (using rephrased query)
-  → Results merged, deduplicated by filename
-  → Combined results + reasoning + user message sent to Claude Sonnet 4.6
-  → Agent returns explanation + {filename, score}
+  → React Frontend sends POST /api/chat to FastAPI
+  → FastAPI calls Claude Haiku 4.5 → returns {semantic_query, keyword_terms, reasoning}
+  → FastAPI dispatches searches in parallel:
+      • Vector Search hybrid query on doc_summaries.summary (always)
+      • SQL ILIKE on doc_summaries.plain_text (if keyword_terms extracted)
+  → FastAPI merges and deduplicates results by filename
+  → FastAPI sends combined results + reasoning + user message to Claude Sonnet 4.6
+  → Sonnet returns explanation + {filename, score} to FastAPI
+  → FastAPI returns response to Frontend
   → Frontend renders response in chat + loads PDF via GET /api/docs/{filename}
-  → PDF served from Unity Catalog volume via REST API
+  → FastAPI fetches PDF from Unity Catalog volume and returns it
 ```
 
 ### Data Pipeline

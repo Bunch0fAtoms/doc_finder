@@ -185,8 +185,7 @@ digraph DocFinder {
         fontsize = 9
         fontcolor = "#555555"
         penwidth = 1
-        margin = 6
-        rankdir = TB
+        margin = 4
 
         node [shape = point width = 0 height = 0 fillcolor = "#F8F8F8" color = "#F8F8F8"]
 
@@ -202,10 +201,15 @@ digraph DocFinder {
         L3b [label = "MLflow trace" shape = plaintext fontsize = 8 fontcolor = "#555555" margin = "0.02,0.02"]
         L3a -> L3b [style = dotted color = "#2A8050" penwidth = 1.2 arrowsize = 0.5]
 
-        /* Stack vertically */
-        L1b -> L2a [style = invis]
-        L2b -> L3a [style = invis]
+        /* Stack vertically, each row aligned */
+        { rank = same; L1a; L1b }
+        { rank = same; L2a; L2b }
+        { rank = same; L3a; L3b }
+        L1a -> L2a -> L3a [style = invis]
     }
+
+    /* Position legend below Observability */
+    MLFLOW -> L1a [style = invis]
 
     /* ─── User Flow ─────────────────────────────────────────── */
     USER -> FRONTEND [label = "chat / view PDF" dir = both]
