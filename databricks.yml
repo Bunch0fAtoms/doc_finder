@@ -29,6 +29,9 @@ variables:
   volume_name:
     description: Unity Catalog volume for raw PDF documents
     default: raw_docs
+  skip_upload:
+    description: "Skip PDF upload step (set to true if using your own pipeline to land PDFs)"
+    default: "false"
 
 targets:
   dev:

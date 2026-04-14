@@ -3,7 +3,19 @@ resources:
     data_pipeline:
       name: "[${bundle.target}] doc-finder: Data Pipeline"
       tasks:
+        - task_key: upload_docs
+          spark_python_task:
+            python_file: ../src/pipeline/00_upload_docs.py
+            parameters:
+              - --catalog=${var.catalog}
+              - --schema=${var.schema}
+              - --volume=${var.volume_name}
+              - --skip-upload=${var.skip_upload}
+          environment_key: pipeline_env
+
         - task_key: parse_docs
+          depends_on:
+            - task_key: upload_docs
           spark_python_task:
             python_file: ../src/pipeline/01_parse_docs.py
             parameters:

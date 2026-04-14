@@ -46,12 +46,9 @@ User describes document in chat
 ### Data Pipeline
 
 ```
-configure.py (local, before deploy):
-  → Creates UC schema + volume if they don't exist
-  → Uploads local PDFs from raw_docs/ to UC volume (skips existing files)
-  → Use --skip-upload if you land PDFs via your own pipeline
-
 data_pipeline (DABs job, on Databricks):
+  → Step 0: Create UC schema + volume, upload PDFs from raw_docs/ (skips existing)
+             Set skip_upload variable to "true" if you land PDFs via your own pipeline
   → Step 1: ai_parse_document extracts text from each PDF
   → Step 2: ai_query (Gemini 2.5 Pro, 100K char input) generates ~200-word summary per document;
            plain_text extracted from content elements (text, table, title, section_header)
@@ -66,7 +63,7 @@ doc_finder/
 ├── databricks.yml               # DABs bundle config (variables + targets)
 ├── resources/
 │   ├── doc_finder_app.yml       # App resource (+ SQL warehouse for keyword search)
-│   └── pipeline_jobs.yml        # Data pipeline job (3 sequential tasks)
+│   └── pipeline_jobs.yml        # Data pipeline job (4 sequential tasks)
 ├── src/
 │   ├── app/                     # App source (deployed to Databricks)
 │   │   ├── app.yaml             # Databricks App runtime config
@@ -80,12 +77,13 @@ doc_finder/
 │   │       └── index.html       # React frontend (CDN-loaded)
 │   └── pipeline/                # Pipeline scripts (run as DABs job tasks)
 │       ├── _config.py           # Shared config parser (CLI args + env vars)
+│       ├── 00_upload_docs.py    # Create schema/volume + upload PDFs
 │       ├── 01_parse_docs.py     # Parse PDFs with ai_parse_document
 │       ├── 02_summarize_docs.py # Summarize with Gemini 2.5 Pro (100K input)
 │       ├── 03_create_vs_index.py# Create VS endpoint + index
 │       └── 04_grant_app_permissions.py
 ├── scripts/
-│   └── configure.py             # Generate app.yaml + create schema/volume + upload PDFs
+│   └── configure.py             # Generate app.yaml from bundle variables
 ├── .env.example                 # Template for local pipeline runs
 └── raw_docs/                    # Source PDFs
 ```
@@ -104,6 +102,7 @@ All environment-specific values are defined as variables in `databricks.yml`:
 | `foundation_model` | LLM for chat agent | `databricks-claude-sonnet-4-6` |
 | `embedding_model` | Embedding model for VS | `databricks-gte-large-en` |
 | `volume_name` | Volume for PDF storage | `raw_docs` |
+| `skip_upload` | Skip PDF upload step (use your own pipeline) | `false` |
 
 Override per target in `databricks.yml`:
 
@@ -128,8 +127,7 @@ targets:
 ### 1. Configure for your target
 
 ```bash
-python scripts/configure.py dev              # Generate app.yaml + create schema/volume + upload PDFs
-python scripts/configure.py dev --skip-upload # Skip upload if you land PDFs via your own pipeline
+python scripts/configure.py dev
 ```
 
 ### 2. Deploy everything via DABs
