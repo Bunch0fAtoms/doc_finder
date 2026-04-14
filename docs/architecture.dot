@@ -3,11 +3,11 @@ digraph DocFinder {
         fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
         fontsize = 18
         bgcolor = "#FFFFFF"
-        pad = 0.7
-        nodesep = 0.6
-        ranksep = 0.85
-        splines = polyline
-        rankdir = LR
+        pad = 0.5
+        nodesep = 0.5
+        ranksep = 0.8
+        splines = true
+        rankdir = TB
         label = "Doc Finder — System Architecture"
         labelloc = t
         labeljust = c
@@ -15,66 +15,55 @@ digraph DocFinder {
     ]
     node [
         fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
-        fontsize = 12
+        fontsize = 11
         shape = box
         style = "filled,rounded"
-        margin = "0.22,0.14"
+        margin = "0.2,0.12"
     ]
     edge [
         fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
-        fontsize = 10
+        fontsize = 9
         color = "#666688"
         fontcolor = "#333355"
-        penwidth = 1.6
-        arrowsize = 0.85
+        penwidth = 1.4
+        arrowsize = 0.75
     ]
 
-    /* ─── User Interface ─────────────────────────────────────── */
-    subgraph cluster_ui {
-        label = "User Interface"
-        style = "filled,rounded"
-        color = "#3A7DC9"
-        fillcolor = "#EAF3FB"
-        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
-        fontsize = 13
-        fontcolor = "#1A3A5C"
-        penwidth = 2.5
+    /* ─── User (outside the app) ─────────────────────────────── */
+    USER [
+        label = "User\n(Browser)"
+        fillcolor = "#3A7DC9"
+        fontcolor = "#FFFFFF"
+        color = "#1E5B9A"
+        shape = ellipse
+    ]
 
-        USER [
-            label = "User\n(Browser)"
-            fillcolor = "#3A7DC9"
-            fontcolor = "#FFFFFF"
-            color = "#1E5B9A"
-            shape = ellipse
-        ]
-        FRONTEND [
-            label = "React Frontend\n(CDN-loaded, index.html)"
-            fillcolor = "#FFFFFF"
-            color = "#3A7DC9"
-            fontcolor = "#1A3A5C"
-        ]
-    }
-
-    /* ─── Search Agent ───────────────────────────────────────── */
-    subgraph cluster_agent {
-        label = "Search Agent  (Databricks App)"
+    /* ─── Databricks App ─────────────────────────────────────── */
+    subgraph cluster_app {
+        label = "Databricks App"
         style = "filled,rounded"
         color = "#7B5EA7"
         fillcolor = "#F3EEF9"
         fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
-        fontsize = 13
+        fontsize = 12
         fontcolor = "#3D1F6E"
-        penwidth = 2.5
+        penwidth = 2
 
-        HAIKU [
-            label = "Claude Haiku 4.5\n(Query Classifier)"
-            fillcolor = "#EDE0F8"
+        FRONTEND [
+            label = "React Frontend\n(CDN-loaded)"
+            fillcolor = "#FFFFFF"
+            color = "#3A7DC9"
+            fontcolor = "#1A3A5C"
+        ]
+        FASTAPI [
+            label = "FastAPI\nBackend"
+            fillcolor = "#FFFFFF"
             color = "#7B5EA7"
             fontcolor = "#3D1F6E"
         ]
-        FASTAPI [
-            label = "FastAPI Backend\nPOST /api/chat\nGET /api/docs/{filename}"
-            fillcolor = "#FFFFFF"
+        HAIKU [
+            label = "Claude Haiku 4.5\n(Query Classifier)"
+            fillcolor = "#EDE0F8"
             color = "#7B5EA7"
             fontcolor = "#3D1F6E"
         ]
@@ -85,9 +74,11 @@ digraph DocFinder {
             fontcolor = "#3D1F6E"
         ]
 
-        /* Force left-to-right order within the agent cluster */
-        { rank = same; HAIKU; FASTAPI; SONNET }
-        HAIKU -> FASTAPI -> SONNET [style = invis]
+        /* Layout: Frontend on top, FastAPI below, Haiku+Sonnet at bottom */
+        FRONTEND -> FASTAPI [style = invis]
+        FASTAPI -> HAIKU [style = invis]
+        FASTAPI -> SONNET [style = invis]
+        { rank = same; HAIKU; SONNET }
     }
 
     /* ─── Data Sources ───────────────────────────────────────── */
@@ -97,18 +88,18 @@ digraph DocFinder {
         color = "#D96A20"
         fillcolor = "#FDF3EB"
         fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
-        fontsize = 13
+        fontsize = 12
         fontcolor = "#7A3A10"
-        penwidth = 2.5
+        penwidth = 2
 
         VS [
-            label = "Vector Search\nHybrid mode\n(vector + keyword)"
+            label = "Vector Search\nHybrid mode"
             fillcolor = "#FFFFFF"
             color = "#D96A20"
             fontcolor = "#7A3A10"
         ]
         SQLWH [
-            label = "SQL Warehouse\nILIKE full-text search\n(plain_text)"
+            label = "SQL Warehouse\nILIKE keyword search"
             fillcolor = "#FFFFFF"
             color = "#D96A20"
             fontcolor = "#7A3A10"
@@ -129,12 +120,12 @@ digraph DocFinder {
         color = "#2A8050"
         fillcolor = "#E8F5EE"
         fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
-        fontsize = 13
+        fontsize = 12
         fontcolor = "#1A5C35"
-        penwidth = 2.5
+        penwidth = 2
 
         MLFLOW [
-            label = "MLflow Tracing\nexperiment: /Shared/doc-finder\n(all agent calls)"
+            label = "MLflow Tracing\n/Shared/doc-finder"
             fillcolor = "#FFFFFF"
             color = "#2A8050"
             fontcolor = "#1A5C35"
@@ -148,25 +139,25 @@ digraph DocFinder {
         color = "#9A7030"
         fillcolor = "#FDF7ED"
         fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
-        fontsize = 13
+        fontsize = 12
         fontcolor = "#6B4A10"
-        penwidth = 2.5
+        penwidth = 2
 
         RAWDOCS [
-            label = "raw_docs/\n(PDF source)"
+            label = "raw_docs/"
             fillcolor = "#FFFFFF"
             color = "#9A7030"
             fontcolor = "#6B4A10"
             shape = folder
         ]
         AIPARSE [
-            label = "ai_parse_document()\n(SQL Warehouse)"
+            label = "ai_parse_document()"
             fillcolor = "#FFFFFF"
             color = "#9A7030"
             fontcolor = "#6B4A10"
         ]
         GEMINI [
-            label = "Gemini 2.5 Pro\n(Summarization)\nvia SQL Warehouse"
+            label = "Gemini 2.5 Pro\n(Summarization)"
             fillcolor = "#FFF3D6"
             color = "#9A7030"
             fontcolor = "#6B4A10"
@@ -179,7 +170,7 @@ digraph DocFinder {
             shape = cylinder
         ]
         VSINDEX [
-            label = "Vector Search Index\nDelta Sync\n(databricks-gte-large-en)"
+            label = "VS Index\nDelta Sync"
             fillcolor = "#FFF3D6"
             color = "#9A7030"
             fontcolor = "#6B4A10"
@@ -196,58 +187,71 @@ digraph DocFinder {
         fontsize = 9
         fontcolor = "#555555"
         penwidth = 1
-        margin = 8
+        margin = 6
+        rankdir = TB
 
         node [shape = point width = 0 height = 0 fillcolor = "#F8F8F8" color = "#F8F8F8"]
 
         L1a [label = ""]
-        L1b [label = "Data flow" shape = plaintext fontsize = 8 fontcolor = "#555555"]
-        L1a -> L1b [color = "#666688" penwidth = 1.2 arrowsize = 0.6 minlen = 1]
+        L1b [label = "Data flow" shape = plaintext fontsize = 8 fontcolor = "#555555" margin = "0.02,0.02"]
+        L1a -> L1b [color = "#666688" penwidth = 1.2 arrowsize = 0.5]
 
         L2a [label = ""]
-        L2b [label = "Parallel search" shape = plaintext fontsize = 8 fontcolor = "#555555"]
-        L2a -> L2b [style = dashed color = "#666688" penwidth = 1.2 arrowsize = 0.6 minlen = 1]
+        L2b [label = "Parallel search" shape = plaintext fontsize = 8 fontcolor = "#555555" margin = "0.02,0.02"]
+        L2a -> L2b [style = dashed color = "#666688" penwidth = 1.2 arrowsize = 0.5]
 
         L3a [label = ""]
-        L3b [label = "MLflow trace" shape = plaintext fontsize = 8 fontcolor = "#555555"]
-        L3a -> L3b [style = dotted color = "#2A8050" penwidth = 1.2 arrowsize = 0.6 minlen = 1]
+        L3b [label = "MLflow trace" shape = plaintext fontsize = 8 fontcolor = "#555555" margin = "0.02,0.02"]
+        L3a -> L3b [style = dotted color = "#2A8050" penwidth = 1.2 arrowsize = 0.5]
+
+        /* Stack vertically */
+        L1b -> L2a [style = invis]
+        L2b -> L3a [style = invis]
     }
 
-    /* ─── User Flow edges ────────────────────────────────────── */
-    USER -> FRONTEND [label = "chat / view PDF"]
-    FRONTEND -> FASTAPI [label = "POST /api/chat\nGET /api/docs/{filename}" dir = both]
+    /* ─── User Flow ─────────────────────────────────────────── */
+    USER -> FRONTEND [label = "chat / view PDF" dir = both]
+    FRONTEND -> FASTAPI [label = "API calls" dir = both]
 
-    /* ─── Search Agent edges ─────────────────────────────────── */
-    FASTAPI -> HAIKU []
-    HAIKU -> VS [label = "semantic_query\n+ keyword_terms" style = dashed]
-    HAIKU -> SQLWH [label = "keyword_terms (ILIKE)" style = dashed]
+    /* ─── Search Agent Flow ─────────────────────────────────── */
+    /* FastAPI sends query to Haiku for classification */
+    FASTAPI -> HAIKU [label = "user query"]
+
+    /* Haiku fans out to both search backends in parallel */
+    HAIKU -> VS [label = "semantic query" style = dashed]
+    HAIKU -> SQLWH [label = "keyword terms" style = dashed]
+
+    /* Search results flow to Sonnet for response generation */
     VS -> SONNET [label = "results"]
     SQLWH -> SONNET [label = "results"]
-    SONNET -> FASTAPI [label = "answer + doc list"]
-    FASTAPI -> UCVOL [label = "serve PDF"]
-    UCVOL -> FASTAPI [label = "PDF bytes"]
 
-    /* ─── Observability edges ────────────────────────────────── */
+    /* Sonnet returns answer to FastAPI */
+    SONNET -> FASTAPI [label = "answer + filename"]
+
+    /* FastAPI serves PDFs from volume */
+    FASTAPI -> UCVOL [label = "fetch / serve PDF" dir = both]
+
+    /* ─── Observability ─────────────────────────────────────── */
     HAIKU -> MLFLOW [
         label = "trace"
         color = "#2A8050"
         fontcolor = "#2A8050"
         style = dotted
-        penwidth = 1.4
+        penwidth = 1.2
     ]
     SONNET -> MLFLOW [
         label = "trace"
         color = "#2A8050"
         fontcolor = "#2A8050"
         style = dotted
-        penwidth = 1.4
+        penwidth = 1.2
     ]
 
-    /* ─── Pipeline edges ─────────────────────────────────────── */
-    RAWDOCS -> UCVOL [label = "upload to volume"]
-    UCVOL -> AIPARSE [label = "parse PDF"]
-    AIPARSE -> GEMINI [label = "raw text"]
+    /* ─── Pipeline Flow ─────────────────────────────────────── */
+    RAWDOCS -> UCVOL [label = "upload"]
+    UCVOL -> AIPARSE [label = "read PDFs"]
+    AIPARSE -> GEMINI [label = "parsed text"]
     GEMINI -> DELTATABLE [label = "summaries"]
     DELTATABLE -> VSINDEX [label = "Delta Sync"]
-    VSINDEX -> VS [label = "serves index\n(live queries)"]
+    VSINDEX -> VS [label = "serves index"]
 }
