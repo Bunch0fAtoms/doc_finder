@@ -40,7 +40,7 @@ targets:
   demo:
     mode: development
     workspace:
-      profile: e2-demo-west
+      profile: e2-demo-field-eng
     variables:
       catalog: morgancatalog
       warehouse_id: "4b9b953939869799"

@@ -46,7 +46,12 @@ User describes document in chat
 ### Data Pipeline
 
 ```
-UC Volume (raw PDFs)
+configure.py (local, before deploy):
+  → Creates UC schema + volume if they don't exist
+  → Uploads local PDFs from raw_docs/ to UC volume (skips existing files)
+  → Use --skip-upload if you land PDFs via your own pipeline
+
+data_pipeline (DABs job, on Databricks):
   → Step 1: ai_parse_document extracts text from each PDF
   → Step 2: ai_query (Gemini 2.5 Pro, 100K char input) generates ~200-word summary per document;
            plain_text extracted from content elements (text, table, title, section_header)
@@ -80,7 +85,7 @@ doc_finder/
 │       ├── 03_create_vs_index.py# Create VS endpoint + index
 │       └── 04_grant_app_permissions.py
 ├── scripts/
-│   └── configure.py             # Generate app.yaml from bundle variables
+│   └── configure.py             # Generate app.yaml + create schema/volume + upload PDFs
 ├── .env.example                 # Template for local pipeline runs
 └── raw_docs/                    # Source PDFs
 ```
@@ -123,7 +128,8 @@ targets:
 ### 1. Configure for your target
 
 ```bash
-python scripts/configure.py dev
+python scripts/configure.py dev              # Generate app.yaml + create schema/volume + upload PDFs
+python scripts/configure.py dev --skip-upload # Skip upload if you land PDFs via your own pipeline
 ```
 
 ### 2. Deploy everything via DABs
