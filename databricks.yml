@@ -37,14 +37,12 @@ targets:
     workspace:
       profile: fe-vm-morgan-stable-classic-6df0yw
 
-  # Example: deploying to a different workspace
-  # prod:
-  #   mode: production
-  #   workspace:
-  #     profile: prod-workspace-profile
-  #   variables:
-  #     catalog: prod_catalog
-  #     schema: doc_finder
-  #     warehouse_id: "abc123def456"
-  #     vs_endpoint_name: doc_finder_vs_endpoint
-  #     vs_index_name: prod_catalog.doc_finder.doc_summaries_index
+  demo:
+    mode: development
+    workspace:
+      profile: e2-demo-west
+    variables:
+      catalog: morgancatalog
+      warehouse_id: "4b9b953939869799"
+      vs_endpoint_name: advance_rag_vs_endpoint
+      vs_index_name: morgancatalog.doc_finder.doc_summaries_index
