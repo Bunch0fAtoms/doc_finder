@@ -28,6 +28,30 @@ The search operates on four layers:
 | **Exact identifier** | "Find document K243531" | Haiku extracts terms → VS hybrid + SQL ILIKE |
 | **Citation/partial** | "45:28-33" | Haiku extracts keyword terms → VS hybrid + normalized SQL ILIKE |
 
+#### Why keyword search matters
+
+Standard vector search encodes *meaning*, not literal strings. An FDA K-number like `K243531` or a citation like `45:28-33` has no semantic meaning to an embedding model — it's just noise. The keyword layer guarantees these exact matches surface even when vector search misses entirely.
+
+#### Punctuation normalization
+
+Medical documents contain identifiers with inconsistent formatting — colons, semicolons, hyphens, and spaces vary between documents. The keyword search strips `: ; - space` from **both** the search term and the stored document text before comparing:
+
+| User types | Stored in document | Normalized | Match? |
+|---|---|---|---|
+| `45:28-33` | `2006;45:28-33` | `452833` / `2006452833` | Yes |
+| `K243531` | `K243531` | `k243531` / `k243531` | Yes |
+| `510(k)` | `510 (k)` | `510(k)` / `510(k)` | Yes |
+
+The SQL applies this normalization inline:
+```sql
+REPLACE(REPLACE(REPLACE(REPLACE(LOWER(plain_text), ':', ''), ';', ''), '-', ''), ' ', '')
+LIKE '%452833%'
+```
+
+#### What `plain_text` contains
+
+The pipeline extracts only **text, table, title, and section header** elements from parsed PDF content. This gives clean searchable text without layout noise, so identifiers embedded in tables or headings are still findable.
+
 ### Data Flow
 
 ```
@@ -194,7 +218,8 @@ View traces in the Databricks workspace under **Experiments → /Shared/doc-find
 |----------|---------|---------|
 | **SQL Warehouse** | Pipeline + App (keyword search) | `ai_parse_document`, `ai_query`, `ILIKE` on plain text |
 | **Vector Search Endpoint** | App (semantic search) | Similarity search over document summaries |
-| **Foundation Model API** | Pipeline + App | Claude Haiku 4.5 (query classification), Gemini 2.5 Pro (summarization), Claude Sonnet 4.6 (chat agent) |
+| **Foundation Model API** | App | Claude Haiku 4.5 (query classification), Claude Sonnet 4.6 (chat agent) |
+| **Foundation Model API** | Pipeline | Gemini 2.5 Pro (document summarization via `ai_query`) |
 | **Unity Catalog Volume** | Pipeline + App | PDF storage and serving |
 | **MLflow Experiment** | App | Trace storage for all agent interactions (`/Shared/doc-finder`) |
 | **Databricks App** | End users | FastAPI + React frontend |
