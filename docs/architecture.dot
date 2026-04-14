@@ -1,0 +1,253 @@
+digraph DocFinder {
+    graph [
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 18
+        bgcolor = "#FFFFFF"
+        pad = 0.7
+        nodesep = 0.6
+        ranksep = 0.85
+        splines = polyline
+        rankdir = LR
+        label = "Doc Finder — System Architecture"
+        labelloc = t
+        labeljust = c
+        fontcolor = "#1a1a2e"
+    ]
+    node [
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 12
+        shape = box
+        style = "filled,rounded"
+        margin = "0.22,0.14"
+    ]
+    edge [
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 10
+        color = "#666688"
+        fontcolor = "#333355"
+        penwidth = 1.6
+        arrowsize = 0.85
+    ]
+
+    /* ─── User Interface ─────────────────────────────────────── */
+    subgraph cluster_ui {
+        label = "User Interface"
+        style = "filled,rounded"
+        color = "#3A7DC9"
+        fillcolor = "#EAF3FB"
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 13
+        fontcolor = "#1A3A5C"
+        penwidth = 2.5
+
+        USER [
+            label = "User\n(Browser)"
+            fillcolor = "#3A7DC9"
+            fontcolor = "#FFFFFF"
+            color = "#1E5B9A"
+            shape = ellipse
+        ]
+        FRONTEND [
+            label = "React Frontend\n(CDN-loaded, index.html)"
+            fillcolor = "#FFFFFF"
+            color = "#3A7DC9"
+            fontcolor = "#1A3A5C"
+        ]
+    }
+
+    /* ─── Search Agent ───────────────────────────────────────── */
+    subgraph cluster_agent {
+        label = "Search Agent  (Databricks App)"
+        style = "filled,rounded"
+        color = "#7B5EA7"
+        fillcolor = "#F3EEF9"
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 13
+        fontcolor = "#3D1F6E"
+        penwidth = 2.5
+
+        HAIKU [
+            label = "Claude Haiku 4.5\n(Query Classifier)"
+            fillcolor = "#EDE0F8"
+            color = "#7B5EA7"
+            fontcolor = "#3D1F6E"
+        ]
+        FASTAPI [
+            label = "FastAPI Backend\nPOST /api/chat\nGET /api/docs/{filename}"
+            fillcolor = "#FFFFFF"
+            color = "#7B5EA7"
+            fontcolor = "#3D1F6E"
+        ]
+        SONNET [
+            label = "Claude Sonnet 4.6\n(Response Generator)"
+            fillcolor = "#EDE0F8"
+            color = "#7B5EA7"
+            fontcolor = "#3D1F6E"
+        ]
+
+        /* Force left-to-right order within the agent cluster */
+        { rank = same; HAIKU; FASTAPI; SONNET }
+        HAIKU -> FASTAPI -> SONNET [style = invis]
+    }
+
+    /* ─── Data Sources ───────────────────────────────────────── */
+    subgraph cluster_data {
+        label = "Data Sources  (Unity Catalog)"
+        style = "filled,rounded"
+        color = "#D96A20"
+        fillcolor = "#FDF3EB"
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 13
+        fontcolor = "#7A3A10"
+        penwidth = 2.5
+
+        VS [
+            label = "Vector Search\nHybrid mode\n(vector + keyword)"
+            fillcolor = "#FFFFFF"
+            color = "#D96A20"
+            fontcolor = "#7A3A10"
+        ]
+        SQLWH [
+            label = "SQL Warehouse\nILIKE full-text search\n(plain_text)"
+            fillcolor = "#FFFFFF"
+            color = "#D96A20"
+            fontcolor = "#7A3A10"
+        ]
+        UCVOL [
+            label = "UC Volume\n(PDF files)"
+            fillcolor = "#FFFFFF"
+            color = "#D96A20"
+            fontcolor = "#7A3A10"
+            shape = cylinder
+        ]
+    }
+
+    /* ─── Observability ──────────────────────────────────────── */
+    subgraph cluster_obs {
+        label = "Observability"
+        style = "filled,rounded"
+        color = "#2A8050"
+        fillcolor = "#E8F5EE"
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 13
+        fontcolor = "#1A5C35"
+        penwidth = 2.5
+
+        MLFLOW [
+            label = "MLflow Tracing\nexperiment: /Shared/doc-finder\n(all agent calls)"
+            fillcolor = "#FFFFFF"
+            color = "#2A8050"
+            fontcolor = "#1A5C35"
+        ]
+    }
+
+    /* ─── Data Pipeline ──────────────────────────────────────── */
+    subgraph cluster_pipeline {
+        label = "Data Pipeline  (DABs Job)"
+        style = "filled,rounded"
+        color = "#9A7030"
+        fillcolor = "#FDF7ED"
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 13
+        fontcolor = "#6B4A10"
+        penwidth = 2.5
+
+        RAWDOCS [
+            label = "raw_docs/\n(PDF source)"
+            fillcolor = "#FFFFFF"
+            color = "#9A7030"
+            fontcolor = "#6B4A10"
+            shape = folder
+        ]
+        AIPARSE [
+            label = "ai_parse_document()\n(SQL Warehouse)"
+            fillcolor = "#FFFFFF"
+            color = "#9A7030"
+            fontcolor = "#6B4A10"
+        ]
+        GEMINI [
+            label = "Gemini 2.5 Pro\n(Summarization)\nvia SQL Warehouse"
+            fillcolor = "#FFF3D6"
+            color = "#9A7030"
+            fontcolor = "#6B4A10"
+        ]
+        DELTATABLE [
+            label = "doc_summaries\n(Delta Table)"
+            fillcolor = "#FFFFFF"
+            color = "#9A7030"
+            fontcolor = "#6B4A10"
+            shape = cylinder
+        ]
+        VSINDEX [
+            label = "Vector Search Index\nDelta Sync\n(databricks-gte-large-en)"
+            fillcolor = "#FFF3D6"
+            color = "#9A7030"
+            fontcolor = "#6B4A10"
+        ]
+    }
+
+    /* ─── Legend ─────────────────────────────────────────────── */
+    subgraph cluster_legend {
+        label = "Legend"
+        style = "filled,rounded"
+        color = "#AAAAAA"
+        fillcolor = "#F8F8F8"
+        fontname = "Helvetica Neue,Helvetica,Arial,sans-serif"
+        fontsize = 9
+        fontcolor = "#555555"
+        penwidth = 1
+        margin = 8
+
+        node [shape = point width = 0 height = 0 fillcolor = "#F8F8F8" color = "#F8F8F8"]
+
+        L1a [label = ""]
+        L1b [label = "Data flow" shape = plaintext fontsize = 8 fontcolor = "#555555"]
+        L1a -> L1b [color = "#666688" penwidth = 1.2 arrowsize = 0.6 minlen = 1]
+
+        L2a [label = ""]
+        L2b [label = "Parallel search" shape = plaintext fontsize = 8 fontcolor = "#555555"]
+        L2a -> L2b [style = dashed color = "#666688" penwidth = 1.2 arrowsize = 0.6 minlen = 1]
+
+        L3a [label = ""]
+        L3b [label = "MLflow trace" shape = plaintext fontsize = 8 fontcolor = "#555555"]
+        L3a -> L3b [style = dotted color = "#2A8050" penwidth = 1.2 arrowsize = 0.6 minlen = 1]
+    }
+
+    /* ─── User Flow edges ────────────────────────────────────── */
+    USER -> FRONTEND [label = "chat / view PDF"]
+    FRONTEND -> FASTAPI [label = "POST /api/chat\nGET /api/docs/{filename}"]
+
+    /* ─── Search Agent edges ─────────────────────────────────── */
+    FASTAPI -> HAIKU []
+    HAIKU -> VS [label = "semantic_query\n+ keyword_terms" style = dashed]
+    HAIKU -> SQLWH [label = "keyword_terms (ILIKE)" style = dashed]
+    VS -> SONNET [label = "results"]
+    SQLWH -> SONNET [label = "results"]
+    SONNET -> FASTAPI [label = "answer + doc list"]
+    FASTAPI -> UCVOL [label = "serve PDF"]
+    UCVOL -> FRONTEND [label = "PDF bytes"]
+
+    /* ─── Observability edges ────────────────────────────────── */
+    HAIKU -> MLFLOW [
+        label = "trace"
+        color = "#2A8050"
+        fontcolor = "#2A8050"
+        style = dotted
+        penwidth = 1.4
+    ]
+    SONNET -> MLFLOW [
+        label = "trace"
+        color = "#2A8050"
+        fontcolor = "#2A8050"
+        style = dotted
+        penwidth = 1.4
+    ]
+
+    /* ─── Pipeline edges ─────────────────────────────────────── */
+    RAWDOCS -> UCVOL [label = "upload to volume"]
+    UCVOL -> AIPARSE [label = "parse PDF"]
+    AIPARSE -> GEMINI [label = "raw text"]
+    GEMINI -> DELTATABLE [label = "summaries"]
+    DELTATABLE -> VSINDEX [label = "Delta Sync"]
+    VSINDEX -> VS [label = "serves index\n(live queries)"]
+}
