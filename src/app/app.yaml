@@ -11,13 +11,13 @@ env:
     valueFrom: sql-warehouse
 
   - name: VS_ENDPOINT_NAME
-    value: "doc_finder_vs_endpoint"
+    value: "advance_rag_vs_endpoint"
 
   - name: VS_INDEX_NAME
-    value: "morgan_stable_classic_6df0yw_catalog.doc_finder.doc_summaries_index"
+    value: "morgancatalog.doc_finder.doc_summaries_index"
 
   - name: CATALOG
-    value: "morgan_stable_classic_6df0yw_catalog"
+    value: "morgancatalog"
 
   - name: SCHEMA
     value: "doc_finder"
