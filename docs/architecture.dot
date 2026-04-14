@@ -215,7 +215,7 @@ digraph DocFinder {
 
     /* ─── User Flow edges ────────────────────────────────────── */
     USER -> FRONTEND [label = "chat / view PDF"]
-    FRONTEND -> FASTAPI [label = "POST /api/chat\nGET /api/docs/{filename}"]
+    FRONTEND -> FASTAPI [label = "POST /api/chat\nGET /api/docs/{filename}" dir = both]
 
     /* ─── Search Agent edges ─────────────────────────────────── */
     FASTAPI -> HAIKU []
