@@ -225,7 +225,7 @@ digraph DocFinder {
     SQLWH -> SONNET [label = "results"]
     SONNET -> FASTAPI [label = "answer + doc list"]
     FASTAPI -> UCVOL [label = "serve PDF"]
-    UCVOL -> FRONTEND [label = "PDF bytes"]
+    UCVOL -> FASTAPI [label = "PDF bytes"]
 
     /* ─── Observability edges ────────────────────────────────── */
     HAIKU -> MLFLOW [
