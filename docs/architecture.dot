@@ -76,8 +76,6 @@ digraph DocFinder {
 
         /* Layout: Frontend on top, FastAPI below, Haiku+Sonnet at bottom */
         FRONTEND -> FASTAPI [style = invis]
-        FASTAPI -> HAIKU [style = invis]
-        FASTAPI -> SONNET [style = invis]
         { rank = same; HAIKU; SONNET }
     }
 
@@ -214,38 +212,24 @@ digraph DocFinder {
     FRONTEND -> FASTAPI [label = "API calls" dir = both]
 
     /* ─── Search Agent Flow ─────────────────────────────────── */
-    /* FastAPI sends query to Haiku for classification */
-    FASTAPI -> HAIKU [label = "user query"]
-
-    /* Haiku fans out to both search backends in parallel */
-    HAIKU -> VS [label = "semantic query" style = dashed]
-    HAIKU -> SQLWH [label = "keyword terms" style = dashed]
-
-    /* Search results flow to Sonnet for response generation */
-    VS -> SONNET [label = "results"]
-    SQLWH -> SONNET [label = "results"]
-
-    /* Sonnet returns answer to FastAPI */
-    SONNET -> FASTAPI [label = "answer + filename"]
-
-    /* FastAPI serves PDFs from volume */
+    /* FastAPI orchestrates all calls */
+    FASTAPI -> HAIKU [label = "classify query" dir = both]
+    FASTAPI -> VS [label = "semantic query" dir = both style = dashed]
+    FASTAPI -> SQLWH [label = "keyword terms" dir = both style = dashed]
+    FASTAPI -> SONNET [label = "results + query\n→ answer + filename" dir = both]
     FASTAPI -> UCVOL [label = "fetch / serve PDF" dir = both]
 
     /* ─── Observability ─────────────────────────────────────── */
-    HAIKU -> MLFLOW [
-        label = "trace"
+    FASTAPI -> MLFLOW [
+        label = "trace all calls"
         color = "#2A8050"
         fontcolor = "#2A8050"
         style = dotted
         penwidth = 1.2
     ]
-    SONNET -> MLFLOW [
-        label = "trace"
-        color = "#2A8050"
-        fontcolor = "#2A8050"
-        style = dotted
-        penwidth = 1.2
-    ]
+
+    /* ─── Data Source connections ────────────────────────────── */
+    SQLWH -> DELTATABLE [label = "queries" dir = both]
 
     /* ─── Pipeline Flow ─────────────────────────────────────── */
     RAWDOCS -> UCVOL [label = "upload"]
