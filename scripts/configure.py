@@ -163,10 +163,29 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
     t = target if target else _default_bundle_target(project_root)
     databricks_app_name = f"doc-finder-{t}"
 
-    branch = _git_branch(project_root)
+    # Check explicit --branch flag or MLFLOW_BRANCH env var first
+    branch = None
+    for arg in sys.argv[1:]:
+        if arg.startswith("--branch="):
+            branch = arg.split("=", 1)[1].strip()
+            break
+    if not branch:
+        for i, arg in enumerate(sys.argv[1:]):
+            if arg == "--branch" and i + 1 < len(sys.argv) - 1:
+                branch = sys.argv[i + 2].strip()
+                break
+    if not branch:
+        branch = os.environ.get("MLFLOW_BRANCH", "").strip() or None
+
+    # Auto-detect from git/workspace if not explicitly provided
+    if not branch:
+        branch = _git_branch(project_root)
+
     if branch:
         mlflow_app_name = f"doc-finder-{_sanitize_branch_for_name(branch)}"
     else:
+        print("  Note: git branch not detected. Pass --branch=<name> or set MLFLOW_BRANCH")
+        print("        to label MLflow traces with the branch version.")
         mlflow_app_name = databricks_app_name
 
     return databricks_app_name, mlflow_app_name
