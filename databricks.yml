@@ -34,18 +34,51 @@ variables:
     default: "false"
 
 targets:
-  dev:
+  Databricks_Dev:
     default: true
     mode: development
     workspace:
       profile: fe-vm-morgan-stable-classic-6df0yw
+      host: https://fevm-morgan-stable-classic-6df0yw.cloud.databricks.com
+    variables:
+      catalog: morgan_stable_classic_6df0yw_catalog
+      schema: doc_finder
+      warehouse_id: "718f1b203cdea5c4"
+      vs_endpoint_name: doc_finder_vs_endpoint
+      vs_index_name: morgan_stable_classic_6df0yw_catalog.doc_finder.doc_summaries_index
+      foundation_model: databricks-claude-sonnet-4-6
+      embedding_model: databricks-gte-large-en
+      volume_name: raw_docs
+      skip_upload: "false"
 
-  demo:
+  Databricks_Demo:
     mode: development
     workspace:
       profile: e2-demo-field-eng
+      host: https://e2-demo-field-eng.cloud.databricks.com
     variables:
       catalog: morgancatalog
+      schema: doc_finder
       warehouse_id: "4b9b953939869799"
       vs_endpoint_name: advance_rag_vs_endpoint
       vs_index_name: morgancatalog.doc_finder.doc_summaries_index
+      foundation_model: databricks-claude-sonnet-4-6
+      embedding_model: databricks-gte-large-en
+      volume_name: raw_docs
+      skip_upload: "false"
+
+  Integra_Dev:
+    mode: development
+    workspace:
+      profile: <your-cli-profile>
+      host: https://<your-workspace>.cloud.databricks.com
+    variables:
+      catalog: <your_catalog>
+      schema: doc_finder
+      warehouse_id: "<your_warehouse_id>"
+      vs_endpoint_name: doc_finder_vs_endpoint
+      vs_index_name: <your_catalog>.doc_finder.doc_summaries_index
+      foundation_model: databricks-claude-sonnet-4-6
+      embedding_model: databricks-gte-large-en
+      volume_name: raw_docs
+      skip_upload: "true"

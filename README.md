@@ -112,7 +112,7 @@ doc_finder/
 │       ├── 03_create_vs_index.py# Create VS endpoint + index
 │       └── 04_grant_app_permissions.py
 ├── scripts/
-│   └── configure.py             # Generate app.yaml from bundle variables
+│   └── configure.py             # Generate app.yaml (stamps MLFLOW_APP_NAME from git branch)
 ├── .env.example                 # Template for local pipeline runs
 └── raw_docs/                    # Source PDFs
 ```
@@ -133,17 +133,15 @@ All environment-specific values are defined as variables in `databricks.yml`:
 | `volume_name` | Volume for PDF storage | `raw_docs` |
 | `skip_upload` | Skip PDF upload step (use your own pipeline) | `false` |
 
-Override per target in `databricks.yml`:
+Three targets are pre-configured in `databricks.yml`:
 
-```yaml
-targets:
-  prod:
-    workspace:
-      profile: prod-workspace-profile
-    variables:
-      catalog: prod_catalog
-      warehouse_id: "abc123"
-```
+| Target | Workspace | Purpose |
+|--------|-----------|---------|
+| `Databricks_Dev` | FEVM (Morgan) | Internal dev/test |
+| `Databricks_Demo` | e2-demo-field-eng | Client-facing demo |
+| `Integra_Dev` | *Client workspace* | Client's own dev environment — update placeholder values |
+
+To add a new target, copy the `Integra_Dev` block and fill in your workspace details.
 
 ## Setup
 
@@ -156,27 +154,29 @@ targets:
 ### 1. Configure for your target
 
 ```bash
-python scripts/configure.py dev
+python scripts/configure.py Databricks_Demo
 ```
+
+This writes `DATABRICKS_APP_NAME` (`doc-finder-<target>`, must match the bundle app name) and `MLFLOW_APP_NAME` (`doc-finder-<sanitized-git-branch>` for MLflow version labels). Run from a git checkout so the branch is detected; without git, `MLFLOW_APP_NAME` falls back to `doc-finder-<target>`.
 
 ### 2. Deploy everything via DABs
 
 ```bash
-databricks bundle deploy -t dev
-databricks bundle run data_pipeline -t dev   # Parse → Summarize → Index
-databricks bundle run doc_finder -t dev      # Start app
+databricks bundle deploy -t Databricks_Demo
+databricks bundle run data_pipeline -t Databricks_Demo   # Upload → Parse → Summarize → Index
+databricks bundle run doc_finder -t Databricks_Demo      # Start app
 ```
 
 ### 3. Grant permissions
 
 ```bash
-APP_SP_ID=$(databricks apps get doc-finder-dev --output=json \
+APP_SP_ID=$(databricks apps get doc-finder-Databricks_Demo --output=json \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['service_principal_client_id'])")
 
 python src/pipeline/04_grant_app_permissions.py \
-  --catalog=morgan_stable_classic_6df0yw_catalog \
+  --catalog=morgancatalog \
   --schema=doc_finder \
-  --warehouse-id=718f1b203cdea5c4 \
+  --warehouse-id=4b9b953939869799 \
   --app-sp-id=$APP_SP_ID
 ```
 
@@ -196,7 +196,7 @@ Grants: USE_CATALOG, USE_SCHEMA, SELECT on VS index, SELECT on doc_summaries tab
 1. Upload new PDFs to the volume
 2. Re-run the pipeline:
    ```bash
-   databricks bundle run data_pipeline -t dev
+   databricks bundle run data_pipeline -t Databricks_Demo
    ```
    This re-parses all PDFs, regenerates summaries, and syncs the VS index.
 
