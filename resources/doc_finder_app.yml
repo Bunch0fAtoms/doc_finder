@@ -37,3 +37,11 @@ resources:
             securable_full_name: ${var.catalog}.${var.schema}.doc_summaries
             securable_type: TABLE
             permission: SELECT
+
+        # Vector Search index (UC table backing the index). `bundle validate` may warn on TABLE/SELECT;
+        # deploy still applies platform-supported UC grants for the app service principal.
+        - name: vs-index
+          uc_securable:
+            securable_full_name: ${var.vs_index_name}
+            securable_type: TABLE
+            permission: SELECT

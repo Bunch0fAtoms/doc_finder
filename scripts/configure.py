@@ -6,11 +6,12 @@ Works both locally and in the Databricks workspace editor.
 No external dependencies — parses databricks.yml with PyYAML if available,
 falls back to a simple parser for the variables/targets sections.
 
-DATABRICKS_APP_NAME must match the bundle app resource name: ``doc-finder-<bundle.target>`` (see
-``doc_finder_app.yml``). It is used for Workspace Apps API lookups.
+``DATABRICKS_APP_NAME`` must match bundle variable ``app_name`` (see ``doc_finder_app.yml``:
+``name: ${var.app_name}``). It is computed from the git branch (sanitized, max 30 chars) and is used
+for Workspace Apps API lookups. Deploy with ``--var app_name=<same value>`` or the default
+``doc-finder`` will be used and will not match ``app.yaml``.
 
-MLFLOW_APP_NAME is derived from the current git branch (sanitized) for version labels; if git is
-unavailable it matches ``DATABRICKS_APP_NAME``.
+``MLFLOW_APP_NAME`` uses the same value as ``DATABRICKS_APP_NAME`` in this project.
 
 Usage (local):
   python scripts/configure.py databricks-demo
@@ -24,8 +25,9 @@ If no target is given, resolution order is: environment variables → git branch
 target → Databricks CLI local cache ``~/.bundle/<bundle>/<target>``
 (most recently used target) → bundle ``default: true`` in databricks.yml.
 
-``databricks bundle deploy -t databricks-demo`` does not set env vars for ``configure.py``; use ``--target``,
-``BUNDLE_TARGET``, matching git branch name, or rely on ``~/.bundle/...`` after a prior deploy.
+``databricks bundle deploy`` does not read ``app.yaml``; pass ``--var app_name=...`` using the name
+``configure.py`` prints. ``databricks bundle run doc_finder`` needs the same ``--var`` when the job
+references ``${var.app_name}``.
 """
 import os
 import re
@@ -158,9 +160,8 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
     """
     Returns (databricks_app_name, mlflow_app_name).
 
-    Both use the git branch: ``doc-finder-<sanitized-branch>``.
-    The app resource uses ``${bundle.git.branch}`` so DATABRICKS_APP_NAME must match.
-    MLFLOW_APP_NAME is the same value for consistent version labeling.
+    Both match bundle ``var.app_name`` (``name: ${var.app_name}`` in ``doc_finder_app.yml``).
+    Pass ``--var app_name=<this value>`` to ``databricks bundle deploy`` and ``bundle run doc_finder``.
 
     Branch source priority: --branch flag > MLFLOW_BRANCH env > auto-detect (git/SDK/CLI).
     Falls back to ``doc-finder-<target>`` if branch is unavailable.
@@ -172,9 +173,10 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
             branch = arg.split("=", 1)[1].strip()
             break
     if not branch:
-        for i, arg in enumerate(sys.argv[1:]):
-            if arg == "--branch" and i + 1 < len(sys.argv) - 1:
-                branch = sys.argv[i + 2].strip()
+        argv_tail = sys.argv[1:]
+        for i, arg in enumerate(argv_tail):
+            if arg == "--branch" and i + 1 < len(argv_tail):
+                branch = argv_tail[i + 1].strip()
                 break
     if not branch:
         branch = os.environ.get("MLFLOW_BRANCH", "").strip() or None

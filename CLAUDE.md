@@ -30,9 +30,10 @@ All environment-specific values are defined as variables in `databricks.yml` and
 ## Deployment
 
 ```bash
-python scripts/configure.py databricks-demo     # Generate app.yaml for target
-databricks bundle deploy -t databricks-demo     # Deploy
-databricks bundle run doc_finder -t databricks-demo  # Start app
+python scripts/configure.py databricks-demo   # Prints app_name; updates app.yaml
+APP_NAME=<value from configure output or app.yaml DATABRICKS_APP_NAME>
+databricks bundle deploy -t databricks-demo --var app_name=$APP_NAME
+databricks bundle run doc_finder -t databricks-demo --var app_name=$APP_NAME
 ```
 
 ## Conventions
@@ -41,7 +42,7 @@ databricks bundle run doc_finder -t databricks-demo  # Start app
 - All app source lives in `src/app/` — this is what DABs deploys.
 - Pipeline scripts in `src/pipeline/` run as DABs jobs or locally.
 - Use the single-call agent pattern (search first, then one LLM call) to stay under the 60s app proxy timeout.
-- App service principal needs explicit UC grants via `src/pipeline/04_grant_app_permissions.py`.
+- App permissions for warehouse, models, UC volume/table, and VS index are declared in `resources/doc_finder_app.yml` (deploy-time). Use `04_grant_app_permissions.py` only if you add resources outside the bundle.
 - Run `scripts/configure.py <target>` before deploying to a new target.
 
 ## Key Decisions

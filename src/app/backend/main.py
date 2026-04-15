@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 def _get_deployment_version() -> str:
     """Get a version string from the Databricks App deployment ID, or fall back to APP_VERSION."""
-    # DATABRICKS_APP_NAME must match bundle app name (doc-finder-<target>) for Apps API.
-    # MLFLOW_APP_NAME is a separate label (git branch) for the version string — do not use it for apps.get().
+    # DATABRICKS_APP_NAME must match bundle var app_name (see configure.py / databricks bundle deploy --var).
+    # MLFLOW_APP_NAME is the same in this app; prefer DATABRICKS_APP_NAME for apps.get().
     try:
         from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()

@@ -159,14 +159,19 @@ To add a new target, copy the `integra-dev` block and fill in your workspace det
 python scripts/configure.py databricks-demo
 ```
 
-This generates `app.yaml` with the correct env vars for the target. The **deployed app name** is `doc-finder-<target>` (same as `doc_finder_app.yml`). **MLflow** uses a sanitized git branch for `MLFLOW_APP_NAME` (version labels); without git it matches the app name.
+This generates `app.yaml` with the correct env vars for the target. **`DATABRICKS_APP_NAME`** (and bundle `app_name`) must be identical: both come from the **sanitized git branch** (`doc-finder-<branch>`), with a 30-character cap — see `scripts/configure.py` output.
+
+**Important:** pass the same `app_name` into the bundle as `configure.py` printed. If you omit `--var app_name=...`, the bundle defaults to `doc-finder` and the running app’s `DATABRICKS_APP_NAME` will not match the deployed app (Apps API / MLflow version lookups break).
 
 ### 2. Deploy everything via DABs
 
+Run `python scripts/configure.py databricks-demo` first, then copy the `app_name` from the log (or from `src/app/app.yaml` → `DATABRICKS_APP_NAME`).
+
 ```bash
-databricks bundle deploy -t databricks-demo
+# Replace APP_NAME with the value from configure.py (example: doc-finder-my-feature-br)
+databricks bundle deploy -t databricks-demo --var app_name=APP_NAME
 databricks bundle run data_pipeline -t databricks-demo   # Upload → Parse → Summarize → Index
-databricks bundle run doc_finder -t databricks-demo      # Start app
+databricks bundle run doc_finder -t databricks-demo --var app_name=APP_NAME   # Start app
 ```
 
 ### 3. Permissions (automatic)
@@ -178,7 +183,7 @@ All permissions are declared in `doc_finder_app.yml` and granted automatically a
 | SQL Warehouse | CAN_USE | Keyword search queries |
 | Sonnet endpoint | CAN_QUERY | Response generation |
 | Haiku endpoint | CAN_QUERY | Query classification |
-| VS index | CAN_SELECT | Semantic search |
+| VS index (UC) | SELECT | Semantic / hybrid search (`vs_index_name`) |
 | UC Volume (raw_docs) | READ_VOLUME | PDF serving |
 | doc_summaries table | SELECT | Keyword search data |
 
@@ -188,9 +193,9 @@ No manual grant script needed — `databricks bundle deploy` handles everything.
 
 1. Add a new target in `databricks.yml` with the workspace profile and variable overrides
 2. `python scripts/configure.py <target>` to generate `src/app/app.yaml`
-3. `databricks bundle deploy -t <target>` (creates app + grants all permissions automatically)
+3. `databricks bundle deploy -t <target> --var app_name=<same as configure.py output>`
 4. `databricks bundle run data_pipeline -t <target>`
-5. `databricks bundle run doc_finder -t <target>`
+5. `databricks bundle run doc_finder -t <target> --var app_name=<same as configure.py output>`
 
 ## Adding New Documents
 
