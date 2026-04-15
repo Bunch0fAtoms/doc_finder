@@ -8,7 +8,7 @@ resources:
       source_code_path: ../src/app
 
       resources:
-        # SQL Warehouse — keyword search queries + pipeline
+        # SQL Warehouse — keyword search queries
         - name: sql-warehouse
           sql_warehouse:
             id: ${var.warehouse_id}
@@ -23,12 +23,6 @@ resources:
           serving_endpoint:
             name: ${var.classifier_model}
             permission: CAN_QUERY
-
-        # Vector Search index — semantic search
-        - name: vs-index
-          vector_search_index:
-            index_name: ${var.vs_index_name}
-            permission: CAN_SELECT
 
         # Unity Catalog volume — PDF serving
         - name: pdf-volume
