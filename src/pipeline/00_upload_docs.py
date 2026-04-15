@@ -14,6 +14,7 @@ import os
 import io
 import sys
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.catalog import VolumeType
 from _config import parse_config
 
 cfg = parse_config("catalog", "schema", "volume")
@@ -75,7 +76,7 @@ def main():
     try:
         w.volumes.create(
             catalog_name=CATALOG, schema_name=SCHEMA, name=VOLUME,
-            volume_type="MANAGED", comment="Raw PDF documents for Doc Finder",
+            volume_type=VolumeType.MANAGED, comment="Raw PDF documents for Doc Finder",
         )
         print("  Volume created.")
     except Exception as e:
