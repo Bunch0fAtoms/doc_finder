@@ -6,8 +6,9 @@ Works both locally and in the Databricks workspace editor.
 No external dependencies — parses databricks.yml with PyYAML if available,
 falls back to a simple parser for the variables/targets sections.
 
-Usage (local):      python scripts/configure.py dev
-Usage (workspace):  Run as Python file with parameter: demo
+Usage (local):      python scripts/configure.py demo
+Usage (workspace):  Run as Python file, click "Add parameter" and enter: demo
+                    (the Target dropdown in the sidebar is for DABs deploy, not this script)
 """
 import sys
 import os
@@ -181,9 +182,24 @@ def get_bundle_variables(project_root, target=None):
 
 
 def main():
-    # Parse target from args (filter out flags like -f that workspace may inject)
-    args = [a for a in sys.argv[1:] if not a.startswith("-")]
-    target = args[0] if args else None
+    # Parse target from args.
+    # Workspace editor injects extra args like: -f /databricks/kernel-connections/...json
+    # Support both positional (local) and --target=X (explicit) forms.
+    target = None
+
+    # Check for explicit --target=X first
+    for arg in sys.argv[1:]:
+        if arg.startswith("--target="):
+            target = arg.split("=", 1)[1]
+            break
+
+    # Fall back to positional args, but only accept simple names (no paths or flags)
+    if target is None:
+        for arg in sys.argv[1:]:
+            if not arg.startswith("-") and "/" not in arg and "." not in arg:
+                target = arg
+                break
+
     target_label = target or "default"
     print(f"Configuring app.yaml for target: {target_label}")
 
