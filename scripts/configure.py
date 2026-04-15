@@ -13,18 +13,18 @@ DATABRICKS_APP_NAME must match the deployed app name from the bundle (doc-finder
 and is used for Workspace Apps API lookups — not the branch label.
 
 Usage (local):
-  python scripts/configure.py demo
-  python scripts/configure.py --target=demo
-  python scripts/configure.py --target demo
-  BUNDLE_TARGET=demo python scripts/configure.py
+  python scripts/configure.py Databricks_Demo
+  python scripts/configure.py --target=Databricks_Demo
+  python scripts/configure.py --target Databricks_Demo
+  BUNDLE_TARGET=Databricks_Demo python scripts/configure.py
 
 Workspace / notebook runs often only pass ``-f /path/to/kernel.json`` — set the target explicitly:
-  --target=demo  as an argument, or environment variable BUNDLE_TARGET=demo (or DATABRICKS_BUNDLE_TARGET).
+  --target=Databricks_Demo as an argument, or environment variable BUNDLE_TARGET (or DATABRICKS_BUNDLE_TARGET).
 If no target is given, resolution order is: environment variables → git branch name if it matches a
-target (e.g. branch ``demo`` → ``demo``) → Databricks CLI local cache ``~/.bundle/<bundle>/<target>``
+target → Databricks CLI local cache ``~/.bundle/<bundle>/<target>``
 (most recently used target) → bundle ``default: true`` in databricks.yml.
 
-``databricks bundle deploy -t demo`` does not set env vars for ``configure.py``; use ``--target``,
+``databricks bundle deploy -t Databricks_Demo`` does not set env vars for ``configure.py``; use ``--target``,
 ``BUNDLE_TARGET``, matching git branch name, or rely on ``~/.bundle/...`` after a prior deploy.
 """
 import os
