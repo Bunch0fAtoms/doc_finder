@@ -18,3 +18,7 @@ resources:
           serving_endpoint:
             name: ${var.classifier_model}
             permission: CAN_QUERY
+        - name: vector-search-endpoint
+          serving_endpoint:
+            name: ${var.vs_endpoint_name}
+            permission: CAN_QUERY
