@@ -10,3 +10,11 @@ resources:
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
+        - name: response-model
+          serving_endpoint:
+            name: ${var.foundation_model}
+            permission: CAN_QUERY
+        - name: classifier-model
+          serving_endpoint:
+            name: ${var.classifier_model}
+            permission: CAN_QUERY
