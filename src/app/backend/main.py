@@ -20,14 +20,16 @@ logger = logging.getLogger(__name__)
 
 def _get_deployment_version() -> str:
     """Get a version string from the Databricks App deployment ID, or fall back to APP_VERSION."""
-    # Try to get deployment ID from the Apps API
+    # DATABRICKS_APP_NAME must match bundle app name (doc-finder-<target>) for Apps API.
+    # MLFLOW_APP_NAME is an optional label (e.g. from git branch via configure.py) for the version prefix.
     try:
         from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()
-        app_name = os.getenv("MLFLOW_APP_NAME", "doc-finder-dev")
-        app = w.apps.get(app_name)
+        api_app = os.getenv("DATABRICKS_APP_NAME") or os.getenv("MLFLOW_APP_NAME", "doc-finder-dev")
+        app = w.apps.get(api_app)
         deploy_id = app.active_deployment.deployment_id
-        return f"{app_name}-{deploy_id[:12]}"
+        label = os.getenv("MLFLOW_APP_NAME") or api_app
+        return f"{label}-{deploy_id[:12]}"
     except Exception:
         pass
     # Fall back to APP_VERSION env var (set by configure.py)

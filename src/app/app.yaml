@@ -28,8 +28,14 @@ env:
   - name: FOUNDATION_MODEL
     value: "databricks-claude-sonnet-4-6"
 
+  - name: CLASSIFIER_MODEL
+    value: "databricks-claude-haiku-4-5"
+
   - name: MLFLOW_EXPERIMENT
     value: "/Shared/doc-finder"
 
+  - name: DATABRICKS_APP_NAME
+    value: "doc-finder-Databricks_Demo"
+
   - name: MLFLOW_APP_NAME
-    value: "doc-finder-dev"
+    value: "doc-finder-multi-workspace-deploy"

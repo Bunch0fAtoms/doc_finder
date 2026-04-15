@@ -108,8 +108,11 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
 
     databricks_app_name: must match bundle resources.apps.*.name = doc-finder-<target>.
     mlflow_app_name: doc-finder-<sanitized-git-branch>, or doc-finder-<target> if no git.
+
+    If ``target`` is missing, uses the bundle default from databricks.yml (``default: true``),
+    never a hardcoded name like ``dev``.
     """
-    t = target or "dev"
+    t = target if target else _default_bundle_target(project_root)
     databricks_app_name = f"doc-finder-{t}"
 
     branch = _git_branch(project_root)
