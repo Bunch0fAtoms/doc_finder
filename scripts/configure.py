@@ -82,7 +82,8 @@ def _git_branch(project_root: str) -> Optional[str]:
 
     Tries in order:
     1. Standard git CLI (local checkouts)
-    2. Databricks Git Folders API (workspace repos)
+    2. Databricks SDK Repos API (notebook/cluster context)
+    3. Databricks CLI ``databricks repos get`` (workspace terminal)
     """
     # 1. Standard git
     try:
@@ -100,16 +101,15 @@ def _git_branch(project_root: str) -> Optional[str]:
     except (subprocess.CalledProcessError, FileNotFoundError, OSError):
         pass
 
-    # 2. Databricks Git Folders — read branch from Repos API
+    # Only try workspace-specific methods if path looks like a workspace path
+    if not project_root.startswith("/Workspace"):
+        return None
+
+    # 2. Databricks SDK — works in notebook/cluster context where runtime auth is available
     try:
         from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()
-        # Find the repo path from project_root (e.g. /Workspace/Users/.../doc_finder)
-        # Normalize to workspace path
-        ws_path = project_root
-        if not ws_path.startswith("/Workspace"):
-            return None
-        status = w.workspace.get_status(ws_path)
+        status = w.workspace.get_status(project_root)
         repo_id = getattr(status, "object_id", None)
         if repo_id:
             repo = w.repos.get(repo_id)
@@ -117,6 +117,25 @@ def _git_branch(project_root: str) -> Optional[str]:
             if branch:
                 return branch
     except Exception:
+        pass
+
+    # 3. Databricks CLI — works in workspace web terminal
+    try:
+        # Get the repo path relative to /Workspace (CLI uses /Users/... not /Workspace/Users/...)
+        repo_path = project_root.replace("/Workspace", "", 1)
+        out = subprocess.run(
+            ["databricks", "repos", "get", repo_path, "--output", "json"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if out.returncode == 0:
+            import json
+            data = json.loads(out.stdout)
+            branch = data.get("branch")
+            if branch:
+                return branch
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
         pass
 
     return None
