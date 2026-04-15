@@ -128,7 +128,9 @@ All environment-specific values are defined as variables in `databricks.yml`:
 | `warehouse_id` | SQL Warehouse ID (pipeline + keyword search) | `718f1b203cdea5c4` |
 | `vs_endpoint_name` | Vector Search endpoint | `doc_finder_vs_endpoint` |
 | `vs_index_name` | Vector Search index (full name) | `<catalog>.<schema>.doc_summaries_index` |
-| `foundation_model` | LLM for chat agent | `databricks-claude-sonnet-4-6` |
+| `foundation_model` | LLM for chat response agent | `databricks-claude-sonnet-4-6` |
+| `classifier_model` | LLM for query classification | `databricks-claude-haiku-4-5` |
+| `summarization_model` | LLM for document summarization (pipeline) | `databricks-gemini-2-5-pro` |
 | `embedding_model` | Embedding model for VS | `databricks-gte-large-en` |
 | `volume_name` | Volume for PDF storage | `raw_docs` |
 | `skip_upload` | Skip PDF upload step (use your own pipeline) | `false` |

@@ -9,10 +9,11 @@ from databricks import sql
 from databricks.sdk.core import Config
 from _config import parse_config
 
-cfg = parse_config("catalog", "schema", "warehouse_id")
+cfg = parse_config("catalog", "schema", "warehouse_id", "summarization_model")
 CATALOG = cfg["catalog"]
 SCHEMA = cfg["schema"]
 WAREHOUSE_ID = cfg["warehouse_id"]
+SUMMARIZATION_MODEL = cfg["summarization_model"]
 
 SUMMARY_PROMPT = """Summarize this document in under 200 words. Include:
 - Document title or subject
@@ -58,7 +59,7 @@ def main():
         SELECT
             filename,
             ai_query(
-                'databricks-gemini-2-5-pro',
+                '{SUMMARIZATION_MODEL}',
                 CONCAT('{sql_safe_prompt}', LEFT(parsed_text, 100000))
             ) AS summary,
             parsed_text AS full_text,

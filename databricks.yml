@@ -21,8 +21,14 @@ variables:
     description: "Full Vector Search index name (catalog.schema.index)"
     default: morgan_stable_classic_6df0yw_catalog.doc_finder.doc_summaries_index
   foundation_model:
-    description: Foundation Model API endpoint for the chat agent
+    description: Foundation Model API endpoint for the chat response agent
     default: databricks-claude-sonnet-4-6
+  classifier_model:
+    description: Foundation Model API endpoint for query classification
+    default: databricks-claude-haiku-4-5
+  summarization_model:
+    description: Foundation Model API endpoint for document summarization (pipeline)
+    default: databricks-gemini-2-5-pro
   embedding_model:
     description: Embedding model for Vector Search
     default: databricks-gte-large-en
@@ -47,6 +53,8 @@ targets:
       vs_endpoint_name: doc_finder_vs_endpoint
       vs_index_name: morgan_stable_classic_6df0yw_catalog.doc_finder.doc_summaries_index
       foundation_model: databricks-claude-sonnet-4-6
+      classifier_model: databricks-claude-haiku-4-5
+      summarization_model: databricks-gemini-2-5-pro
       embedding_model: databricks-gte-large-en
       volume_name: raw_docs
       skip_upload: "false"
@@ -63,6 +71,8 @@ targets:
       vs_endpoint_name: advance_rag_vs_endpoint
       vs_index_name: morgancatalog.doc_finder.doc_summaries_index
       foundation_model: databricks-claude-sonnet-4-6
+      classifier_model: databricks-claude-haiku-4-5
+      summarization_model: databricks-gemini-2-5-pro
       embedding_model: databricks-gte-large-en
       volume_name: raw_docs
       skip_upload: "false"
@@ -79,6 +89,8 @@ targets:
       vs_endpoint_name: doc_finder_vs_endpoint
       vs_index_name: <your_catalog>.doc_finder.doc_summaries_index
       foundation_model: databricks-claude-sonnet-4-6
+      classifier_model: databricks-claude-haiku-4-5
+      summarization_model: databricks-gemini-2-5-pro
       embedding_model: databricks-gte-large-en
       volume_name: raw_docs
-      skip_upload: "true"
+      skip_upload: "false"

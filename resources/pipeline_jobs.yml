@@ -34,6 +34,7 @@ resources:
               - --catalog=${var.catalog}
               - --schema=${var.schema}
               - --warehouse-id=${var.warehouse_id}
+              - --summarization-model=${var.summarization_model}
           environment_key: pipeline_env
 
         - task_key: create_vs_index
