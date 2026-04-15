@@ -46,14 +46,36 @@ def _find_raw_docs_workspace_path():
         return cwd_path, "local"
 
     # Try relative to this script (src/pipeline/ -> ../../raw_docs/)
-    script_relative = os.path.join(os.path.dirname(__file__), "..", "..", "raw_docs")
-    script_relative = os.path.normpath(script_relative)
-    if os.path.isdir(script_relative):
-        return script_relative, "local"
+    try:
+        script_relative = os.path.join(os.path.dirname(__file__), "..", "..", "raw_docs")
+        script_relative = os.path.normpath(script_relative)
+        if os.path.isdir(script_relative):
+            return script_relative, "local"
+    except NameError:
+        pass  # __file__ not defined in workspace exec() context
 
-    # For workspace-backed execution, try reading via workspace API
-    # The script path on workspace is like /Workspace/.../files/src/pipeline/00_upload_docs.py
-    # raw_docs would be at /Workspace/.../files/raw_docs/
+    # Try known workspace paths (DABs source-linked deployment)
+    # The script runs from /Workspace/Users/.../doc_finder/src/pipeline/
+    # raw_docs is at /Workspace/Users/.../doc_finder/raw_docs/
+    for arg in sys.argv:
+        if "/Workspace/" in arg and "00_upload_docs" in arg:
+            # Extract project root from the script path
+            parts = arg.split("/src/pipeline/")[0]
+            candidate = os.path.join(parts, "raw_docs")
+            if os.path.isdir(candidate):
+                return candidate, "local"
+
+    # Search up from CWD
+    path = os.getcwd()
+    for _ in range(5):
+        candidate = os.path.join(path, "raw_docs")
+        if os.path.isdir(candidate):
+            return candidate, "local"
+        parent = os.path.dirname(path)
+        if parent == path:
+            break
+        path = parent
+
     return None, None
 
 
