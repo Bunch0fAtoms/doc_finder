@@ -23,16 +23,16 @@ All environment-specific values are defined as variables in `databricks.yml` and
 
 ## Targets
 
-- **Databricks_Dev** (default): FEVM Morgan workspace — `fe-vm-morgan-stable-classic-6df0yw`
-- **Databricks_Demo**: e2-demo-field-eng — `morgancatalog.doc_finder`
-- **Integra_Dev**: Client workspace — placeholder values, update before use
+- **databricks-dev** (default): FEVM Morgan workspace — `fe-vm-morgan-stable-classic-6df0yw`
+- **databricks-demo**: e2-demo-field-eng — `morgancatalog.doc_finder`
+- **integra-dev**: Client workspace — placeholder values, update before use
 
 ## Deployment
 
 ```bash
-python scripts/configure.py Databricks_Demo     # Generate app.yaml for target
-databricks bundle deploy -t Databricks_Demo     # Deploy
-databricks bundle run doc_finder -t Databricks_Demo  # Start app
+python scripts/configure.py databricks-demo     # Generate app.yaml for target
+databricks bundle deploy -t databricks-demo     # Deploy
+databricks bundle run doc_finder -t databricks-demo  # Start app
 ```
 
 ## Conventions

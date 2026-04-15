@@ -139,11 +139,11 @@ Three targets are pre-configured in `databricks.yml`:
 
 | Target | Workspace | Purpose |
 |--------|-----------|---------|
-| `Databricks_Dev` | FEVM (Morgan) | Internal dev/test |
-| `Databricks_Demo` | e2-demo-field-eng | Client-facing demo |
-| `Integra_Dev` | *Client workspace* | Client's own dev environment — update placeholder values |
+| `databricks-dev` | FEVM (Morgan) | Internal dev/test |
+| `databricks-demo` | e2-demo-field-eng | Client-facing demo |
+| `integra-dev` | *Client workspace* | Client's own dev environment — update placeholder values |
 
-To add a new target, copy the `Integra_Dev` block and fill in your workspace details.
+To add a new target, copy the `integra-dev` block and fill in your workspace details.
 
 ## Setup
 
@@ -156,7 +156,7 @@ To add a new target, copy the `Integra_Dev` block and fill in your workspace det
 ### 1. Configure for your target
 
 ```bash
-python scripts/configure.py Databricks_Demo
+python scripts/configure.py databricks-demo
 ```
 
 This writes `DATABRICKS_APP_NAME` (`doc-finder-<target>`, must match the bundle app name) and `MLFLOW_APP_NAME` (`doc-finder-<sanitized-git-branch>` for MLflow version labels). Run from a git checkout so the branch is detected; without git, `MLFLOW_APP_NAME` falls back to `doc-finder-<target>`.
@@ -164,9 +164,9 @@ This writes `DATABRICKS_APP_NAME` (`doc-finder-<target>`, must match the bundle 
 ### 2. Deploy everything via DABs
 
 ```bash
-databricks bundle deploy -t Databricks_Demo
-databricks bundle run data_pipeline -t Databricks_Demo   # Upload → Parse → Summarize → Index
-databricks bundle run doc_finder -t Databricks_Demo      # Start app
+databricks bundle deploy -t databricks-demo
+databricks bundle run data_pipeline -t databricks-demo   # Upload → Parse → Summarize → Index
+databricks bundle run doc_finder -t databricks-demo      # Start app
 ```
 
 ### 3. Grant permissions
@@ -177,7 +177,7 @@ python src/pipeline/04_grant_app_permissions.py \
   --schema=doc_finder \
   --warehouse-id=4b9b953939869799 \
   --volume=raw_docs \
-  --app-name=doc-finder-Databricks_Demo
+  --app-name=doc-finder-databricks-demo
 ```
 
 The script automatically looks up the app's service principal and grants: USE_CATALOG, USE_SCHEMA, SELECT on doc_summaries table, SELECT on VS index, READ_VOLUME.
@@ -198,7 +198,7 @@ The app resource in `doc_finder_app.yml` also grants CAN_USE on the SQL warehous
 1. Upload new PDFs to the volume
 2. Re-run the pipeline:
    ```bash
-   databricks bundle run data_pipeline -t Databricks_Demo
+   databricks bundle run data_pipeline -t databricks-demo
    ```
    This re-parses all PDFs, regenerates summaries, and syncs the VS index.
 

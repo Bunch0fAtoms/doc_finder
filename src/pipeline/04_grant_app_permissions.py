@@ -9,7 +9,7 @@ Usage:
     python src/pipeline/04_grant_app_permissions.py \
         --catalog=morgancatalog --schema=doc_finder \
         --warehouse-id=4b9b953939869799 --volume=raw_docs \
-        --app-name=doc-finder-Databricks_Demo
+        --app-name=doc-finder-databricks-demo
 """
 from databricks import sql
 from databricks.sdk import WorkspaceClient
