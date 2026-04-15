@@ -78,7 +78,13 @@ env:
 
 
 def _git_branch(project_root: str) -> Optional[str]:
-    """Return current git branch name, or None if not a git repo / git missing."""
+    """Return current git branch name, or None if unavailable.
+
+    Tries in order:
+    1. Standard git CLI (local checkouts)
+    2. Databricks Git Folders API (workspace repos)
+    """
+    # 1. Standard git
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -89,9 +95,31 @@ def _git_branch(project_root: str) -> Optional[str]:
             check=True,
         )
         b = out.stdout.strip()
-        return b if b else None
+        if b and b != "HEAD":
+            return b
     except (subprocess.CalledProcessError, FileNotFoundError, OSError):
-        return None
+        pass
+
+    # 2. Databricks Git Folders — read branch from Repos API
+    try:
+        from databricks.sdk import WorkspaceClient
+        w = WorkspaceClient()
+        # Find the repo path from project_root (e.g. /Workspace/Users/.../doc_finder)
+        # Normalize to workspace path
+        ws_path = project_root
+        if not ws_path.startswith("/Workspace"):
+            return None
+        status = w.workspace.get_status(ws_path)
+        repo_id = getattr(status, "object_id", None)
+        if repo_id:
+            repo = w.repos.get(repo_id)
+            branch = getattr(repo, "branch", None)
+            if branch:
+                return branch
+    except Exception:
+        pass
+
+    return None
 
 
 def _sanitize_branch_for_name(branch: str) -> str:
