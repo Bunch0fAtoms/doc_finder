@@ -153,16 +153,13 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
     """
     Returns (databricks_app_name, mlflow_app_name).
 
-    databricks_app_name: ``doc-finder-<target>``, matching ``resources/doc_finder_app.yml``
-    (``name: doc-finder-${bundle.target}``). Raw ``bundle.git.branch`` is not used in the bundle
-    because it cannot be sanitized the same way as Python.
+    Both use the git branch: ``doc-finder-<sanitized-branch>``.
+    The app resource uses ``${bundle.git.branch}`` so DATABRICKS_APP_NAME must match.
+    MLFLOW_APP_NAME is the same value for consistent version labeling.
 
-    mlflow_app_name: ``doc-finder-<sanitized-git-branch>`` when git is available; otherwise same
-    as databricks_app_name.
+    Branch source priority: --branch flag > MLFLOW_BRANCH env > auto-detect (git/SDK/CLI).
+    Falls back to ``doc-finder-<target>`` if branch is unavailable.
     """
-    t = target if target else _default_bundle_target(project_root)
-    databricks_app_name = f"doc-finder-{t}"
-
     # Check explicit --branch flag or MLFLOW_BRANCH env var first
     branch = None
     for arg in sys.argv[1:]:
@@ -182,13 +179,15 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
         branch = _git_branch(project_root)
 
     if branch:
-        mlflow_app_name = f"doc-finder-{_sanitize_branch_for_name(branch)}"
+        sanitized = _sanitize_branch_for_name(branch)
+        app_name = f"doc-finder-{sanitized}"
     else:
+        t = target if target else _default_bundle_target(project_root)
+        app_name = f"doc-finder-{t}"
         print("  Note: git branch not detected. Pass --branch=<name> or set MLFLOW_BRANCH")
-        print("        to label MLflow traces with the branch version.")
-        mlflow_app_name = databricks_app_name
+        print("        so app name matches the deployed bundle app.")
 
-    return databricks_app_name, mlflow_app_name
+    return app_name, app_name
 
 
 def _find_project_root():

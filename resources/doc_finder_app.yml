@@ -1,9 +1,9 @@
 resources:
   apps:
     doc_finder:
-      # Must match scripts/configure.py DATABRICKS_APP_NAME: doc-finder-<bundle.target> (not raw git branch;
-      # branch casing/symbols cannot be sanitized in bundle YAML).
-      name: doc-finder-${bundle.target}
+      # App name uses git branch so each branch deploys as a separate app.
+      # Branch names must be lowercase with dashes only (no / or _).
+      name: doc-finder-${bundle.git.branch}
       description: "Document search app for Integra LifeSciences"
       source_code_path: ../src/app
 
@@ -20,7 +20,5 @@ resources:
           serving_endpoint:
             name: ${var.classifier_model}
             permission: CAN_QUERY
-        - name: vector-search-endpoint
-          serving_endpoint:
-            name: ${var.vs_endpoint_name}
-            permission: CAN_QUERY
+        # Vector Search endpoint access is granted via UC permissions
+        # in 04_grant_app_permissions.py (not a serving_endpoint resource).
