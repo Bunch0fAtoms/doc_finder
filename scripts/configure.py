@@ -141,11 +141,16 @@ def _git_branch(project_root: str) -> Optional[str]:
     return None
 
 
-def _sanitize_branch_for_name(branch: str) -> str:
-    """Make branch string safe for MLflow LoggedModel / env value (alnum + hyphen)."""
+def _sanitize_branch_for_name(branch: str, max_suffix_len: int = 18) -> str:
+    """Make branch string safe for app names (alnum + hyphen, truncated).
+
+    App names must be <= 30 chars. With 'doc-finder-' prefix (12 chars),
+    the suffix is limited to 18 chars by default.
+    """
     s = branch.strip().lower().replace("/", "-")
     s = re.sub(r"[^a-z0-9._-]+", "-", s)
     s = re.sub(r"-+", "-", s).strip("-")
+    s = s[:max_suffix_len].rstrip("-")
     return s or "unknown"
 
 
@@ -186,6 +191,10 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
         app_name = f"doc-finder-{t}"
         print("  Note: git branch not detected. Pass --branch=<name> or set MLFLOW_BRANCH")
         print("        so app name matches the deployed bundle app.")
+
+    # Enforce 30-char max for Databricks App names
+    if len(app_name) > 30:
+        app_name = app_name[:30].rstrip("-")
 
     return app_name, app_name
 
@@ -476,6 +485,10 @@ def main():
     print(f"  foundation_model: {variables.get('foundation_model')}")
     print(f"  databricks_app:   {databricks_app_name}")
     print(f"  mlflow_app:       {mlflow_app_name}  (git branch label; may differ from databricks_app)")
+    print(f"\nDeploy with:")
+    print(f"  databricks bundle deploy -t {target} --var app_name={databricks_app_name}")
+    print(f"  databricks bundle run data_pipeline -t {target}")
+    print(f"  databricks bundle run doc_finder -t {target} --var app_name={databricks_app_name}")
 
 
 if __name__ == "__main__":

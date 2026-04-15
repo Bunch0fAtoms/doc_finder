@@ -1,9 +1,9 @@
 resources:
   apps:
     doc_finder:
-      # App name uses git branch so each branch deploys as a separate app.
-      # Branch names must be lowercase with dashes only (no / or _).
-      name: doc-finder-${bundle.git.branch}
+      # App name set via app_name variable (max 30 chars).
+      # configure.py generates this from the git branch: doc-finder-<branch>.
+      name: ${var.app_name}
       description: "Document search app for Integra LifeSciences"
       source_code_path: ../src/app
 

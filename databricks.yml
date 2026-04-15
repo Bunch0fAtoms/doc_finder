@@ -38,6 +38,9 @@ variables:
   skip_upload:
     description: "Skip PDF upload step (set to true if using your own pipeline to land PDFs)"
     default: "false"
+  app_name:
+    description: "Databricks App name (max 30 chars, lowercase + dashes). Set by configure.py."
+    default: doc-finder
 
 targets:
   databricks-dev:
