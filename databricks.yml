@@ -54,9 +54,16 @@ targets:
       host: https://e2-demo-field-eng.cloud.databricks.com
     variables:
       catalog: morgancatalog
+      schema: doc_finder
       warehouse_id: "4b9b953939869799"
       vs_endpoint_name: advance_rag_vs_endpoint
       vs_index_name: morgancatalog.doc_finder.doc_summaries_index
+      foundation_model: databricks-claude-sonnet-4-6
+      classifier_model: databricks-claude-haiku-4-5
+      summarization_model: databricks-gemini-2-5-pro
+      embedding_model: databricks-gte-large-en
+      volume_name: raw_docs
+      skip_upload: "false"
 
   integra-dev:
     mode: development
@@ -65,5 +72,13 @@ targets:
       host: https://<your-workspace>.cloud.databricks.com
     variables:
       catalog: <your_catalog>
+      schema: doc_finder
       warehouse_id: "<your_warehouse_id>"
+      vs_endpoint_name: doc_finder_vs_endpoint
       vs_index_name: <your_catalog>.doc_finder.doc_summaries_index
+      foundation_model: databricks-claude-sonnet-4-6
+      classifier_model: databricks-claude-haiku-4-5
+      summarization_model: databricks-gemini-2-5-pro
+      embedding_model: databricks-gte-large-en
+      volume_name: raw_docs
+      skip_upload: "false"
