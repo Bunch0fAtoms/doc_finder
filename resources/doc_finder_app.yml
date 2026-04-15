@@ -1,7 +1,9 @@
 resources:
   apps:
     doc_finder:
-      name: doc-finder-${bundle.git.branch}
+      # Must match scripts/configure.py DATABRICKS_APP_NAME: doc-finder-<bundle.target> (not raw git branch;
+      # branch casing/symbols cannot be sanitized in bundle YAML).
+      name: doc-finder-${bundle.target}
       description: "Document search app for Integra LifeSciences"
       source_code_path: ../src/app
 

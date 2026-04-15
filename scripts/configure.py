@@ -6,11 +6,11 @@ Works both locally and in the Databricks workspace editor.
 No external dependencies — parses databricks.yml with PyYAML if available,
 falls back to a simple parser for the variables/targets sections.
 
-MLFLOW_APP_NAME is derived from the current git branch (sanitized). If git is unavailable,
-it falls back to doc-finder-<target> to match bundle app naming.
+DATABRICKS_APP_NAME must match the bundle app resource name: ``doc-finder-<bundle.target>`` (see
+``doc_finder_app.yml``). It is used for Workspace Apps API lookups.
 
-DATABRICKS_APP_NAME must match the deployed app name from the bundle (doc-finder-<target>)
-and is used for Workspace Apps API lookups — not the branch label.
+MLFLOW_APP_NAME is derived from the current git branch (sanitized) for version labels; if git is
+unavailable it matches ``DATABRICKS_APP_NAME``.
 
 Usage (local):
   python scripts/configure.py databricks-demo
@@ -106,22 +106,23 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
     """
     Returns (databricks_app_name, mlflow_app_name).
 
-    Both are derived from the git branch: doc-finder-<sanitized-branch>.
-    The app resource in doc_finder_app.yml uses ${bundle.git.branch}, so
-    DATABRICKS_APP_NAME must match. MLFLOW_APP_NAME uses the same value
-    so MLflow traces show the branch as the version.
+    databricks_app_name: ``doc-finder-<target>``, matching ``resources/doc_finder_app.yml``
+    (``name: doc-finder-${bundle.target}``). Raw ``bundle.git.branch`` is not used in the bundle
+    because it cannot be sanitized the same way as Python.
 
-    Falls back to doc-finder-<target> if git is unavailable.
+    mlflow_app_name: ``doc-finder-<sanitized-git-branch>`` when git is available; otherwise same
+    as databricks_app_name.
     """
+    t = target if target else _default_bundle_target(project_root)
+    databricks_app_name = f"doc-finder-{t}"
+
     branch = _git_branch(project_root)
     if branch:
-        sanitized = _sanitize_branch_for_name(branch)
-        app_name = f"doc-finder-{sanitized}"
+        mlflow_app_name = f"doc-finder-{_sanitize_branch_for_name(branch)}"
     else:
-        t = target if target else _default_bundle_target(project_root)
-        app_name = f"doc-finder-{t}"
+        mlflow_app_name = databricks_app_name
 
-    return app_name, app_name
+    return databricks_app_name, mlflow_app_name
 
 
 def _find_project_root():
@@ -409,7 +410,7 @@ def main():
     print(f"  vs_endpoint:      {variables.get('vs_endpoint_name')}")
     print(f"  foundation_model: {variables.get('foundation_model')}")
     print(f"  databricks_app:   {databricks_app_name}")
-    print(f"  mlflow_app:       {mlflow_app_name}  (from git branch if available)")
+    print(f"  mlflow_app:       {mlflow_app_name}  (git branch label; may differ from databricks_app)")
 
 
 if __name__ == "__main__":

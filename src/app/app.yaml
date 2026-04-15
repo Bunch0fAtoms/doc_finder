@@ -35,7 +35,7 @@ env:
     value: "/Shared/doc-finder"
 
   - name: DATABRICKS_APP_NAME
-    value: "doc-finder-Databricks_Demo"
+    value: "doc-finder-databricks-demo"
 
   - name: MLFLOW_APP_NAME
     value: "doc-finder-multi-workspace-deploy"

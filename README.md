@@ -159,7 +159,7 @@ To add a new target, copy the `integra-dev` block and fill in your workspace det
 python scripts/configure.py databricks-demo
 ```
 
-This generates `app.yaml` with the correct env vars for the target. The app name is derived from the **git branch** (`doc-finder-<branch>`), so each branch deploys as a separate app. Multiple branches can run simultaneously in the same workspace, all logging to the same MLflow experiment with the branch as the version label. Without git, falls back to `doc-finder-<target>`.
+This generates `app.yaml` with the correct env vars for the target. The **deployed app name** is `doc-finder-<target>` (same as `doc_finder_app.yml`). **MLflow** uses a sanitized git branch for `MLFLOW_APP_NAME` (version labels); without git it matches the app name.
 
 ### 2. Deploy everything via DABs
 
@@ -177,7 +177,7 @@ python src/pipeline/04_grant_app_permissions.py \
   --schema=doc_finder \
   --warehouse-id=4b9b953939869799 \
   --volume=raw_docs \
-  --app-name=doc-finder-<your-branch>
+  --app-name=doc-finder-<target>
 ```
 
 The script automatically looks up the app's service principal and grants: USE_CATALOG, USE_SCHEMA, SELECT on doc_summaries table, SELECT on VS index, READ_VOLUME.
