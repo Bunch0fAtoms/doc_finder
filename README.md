@@ -169,29 +169,28 @@ databricks bundle run data_pipeline -t databricks-demo   # Upload → Parse → 
 databricks bundle run doc_finder -t databricks-demo      # Start app
 ```
 
-### 3. Grant permissions
+### 3. Permissions (automatic)
 
-```bash
-python src/pipeline/04_grant_app_permissions.py \
-  --catalog=morgancatalog \
-  --schema=doc_finder \
-  --warehouse-id=4b9b953939869799 \
-  --volume=raw_docs \
-  --app-name=doc-finder-<target>
-```
+All permissions are declared in `doc_finder_app.yml` and granted automatically at deploy time:
 
-The script automatically looks up the app's service principal and grants: USE_CATALOG, USE_SCHEMA, SELECT on doc_summaries table, SELECT on VS index, READ_VOLUME.
+| Resource | Permission | Purpose |
+|----------|-----------|---------|
+| SQL Warehouse | CAN_USE | Keyword search queries |
+| Sonnet endpoint | CAN_QUERY | Response generation |
+| Haiku endpoint | CAN_QUERY | Query classification |
+| VS index | CAN_SELECT | Semantic search |
+| UC Volume (raw_docs) | READ_VOLUME | PDF serving |
+| doc_summaries table | SELECT | Keyword search data |
 
-The app resource in `doc_finder_app.yml` also grants CAN_USE on the SQL warehouse and CAN_QUERY on the Foundation Model API endpoints (Sonnet + Haiku) at deploy time.
+No manual grant script needed — `databricks bundle deploy` handles everything.
 
 ## Deploying to a New Workspace
 
 1. Add a new target in `databricks.yml` with the workspace profile and variable overrides
 2. `python scripts/configure.py <target>` to generate `src/app/app.yaml`
-3. `databricks bundle deploy -t <target>`
+3. `databricks bundle deploy -t <target>` (creates app + grants all permissions automatically)
 4. `databricks bundle run data_pipeline -t <target>`
 5. `databricks bundle run doc_finder -t <target>`
-6. Grant permissions to the new app's service principal
 
 ## Adding New Documents
 

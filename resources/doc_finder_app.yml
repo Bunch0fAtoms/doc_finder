@@ -8,10 +8,13 @@ resources:
       source_code_path: ../src/app
 
       resources:
+        # SQL Warehouse — keyword search queries + pipeline
         - name: sql-warehouse
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
+
+        # Foundation Model API endpoints
         - name: response-model
           serving_endpoint:
             name: ${var.foundation_model}
@@ -20,5 +23,23 @@ resources:
           serving_endpoint:
             name: ${var.classifier_model}
             permission: CAN_QUERY
-        # Vector Search endpoint access is granted via UC permissions
-        # in 04_grant_app_permissions.py (not a serving_endpoint resource).
+
+        # Vector Search index — semantic search
+        - name: vs-index
+          vector_search_index:
+            index_name: ${var.vs_index_name}
+            permission: CAN_SELECT
+
+        # Unity Catalog volume — PDF serving
+        - name: pdf-volume
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.${var.volume_name}
+            securable_type: VOLUME
+            permission: READ_VOLUME
+
+        # doc_summaries table — keyword search queries
+        - name: doc-summaries-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.doc_summaries
+            securable_type: TABLE
+            permission: SELECT
