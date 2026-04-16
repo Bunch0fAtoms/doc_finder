@@ -6,21 +6,15 @@ Works both locally and in the Databricks workspace editor.
 No external dependencies — parses databricks.yml with PyYAML if available,
 falls back to a simple parser for the variables/targets sections.
 
-``DATABRICKS_APP_NAME`` in ``app.yaml`` must match the bundle variable ``app_name``
-(``name: ${var.app_name}`` in ``doc_finder_app.yml``). The app uses this env var to look
-itself up via the Apps API for deployment versioning.
+This script sets ``DATABRICKS_APP_NAME`` in ``app.yaml`` and prints the matching
+``--var app_name=`` value for DABs. Use the same ``--name`` here and ``--var app_name``
+in ``databricks bundle deploy`` / ``bundle run`` so they stay in sync.
 
 App name resolution (first match wins):
   1. ``--name=<value>`` flag or ``APP_NAME`` env var — used as-is (recommended)
   2. ``--branch=<value>`` flag or ``MLFLOW_BRANCH`` env var — becomes ``doc-finder-<branch>``
   3. Auto-detected git branch — becomes ``doc-finder-<branch>``
   4. Fallback — ``doc-finder-<target>``
-
-Pass the same value to DABs: ``--var app_name=<name>``. If omitted, the bundle default
-``doc-finder`` is used. This only matches if ``configure.py`` also produced ``doc-finder``
-(e.g. via ``--name=doc-finder``).
-
-``MLFLOW_APP_NAME`` uses the same value as ``DATABRICKS_APP_NAME`` in this project.
 
 Usage (local):
   python scripts/configure.py databricks-demo
