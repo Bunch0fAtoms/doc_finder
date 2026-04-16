@@ -460,6 +460,12 @@ def _parse_target(project_root: str) -> Tuple[Optional[str], str]:
             continue
         if a in known:
             return (a, "argv")
+        # Positional arg that looks like a target name but isn't in databricks.yml
+        if not a.startswith("-") and not a.startswith("/") and not a.startswith("."):
+            print(f"ERROR: target '{a}' not found in databricks.yml.")
+            print(f"  Known targets: {', '.join(sorted(known))}")
+            print(f"  Add '{a}' to databricks.yml before running configure.py.")
+            sys.exit(1)
 
     for key in (
         "BUNDLE_TARGET",
