@@ -218,7 +218,7 @@ Most permissions are declared in `doc_finder_app.yml` and granted automatically 
 | Resource | Why | How |
 |----------|-----|-----|
 | **SQL Warehouse** | Used by the pipeline (parsing, summarization) and the app (keyword search) | Create in workspace UI; copy the ID from the warehouse settings page |
-| **Databricks CLI profile** (local machine only) | Only needed when deploying from outside the Databricks workspace. The `profile` field in `databricks.yml` must match an authenticated profile in `~/.databrickscfg` | `databricks auth login --host https://<workspace>.cloud.databricks.com --profile <name>` |
+| **Databricks CLI auth** (local machine only) | Only needed when deploying from outside the Databricks workspace. Inside the workspace, the CLI auto-authenticates. | `databricks auth login --host https://<workspace>.cloud.databricks.com` |
 
 Everything else (catalog, schema, volume, tables, Vector Search endpoint + index) is created automatically by the data pipeline.
 
@@ -230,7 +230,6 @@ Copy the `integra-dev` block and fill in your workspace values:
   my-workspace:
     mode: development
     workspace:
-      profile: <your-cli-profile>            # must match databricks auth login --profile
       host: https://<your-workspace>.cloud.databricks.com
     variables:
       catalog: <your_catalog>                # Unity Catalog catalog (must exist or be creatable)

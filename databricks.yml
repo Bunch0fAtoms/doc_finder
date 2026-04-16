@@ -88,7 +88,6 @@ targets:
   integra-dev:
     mode: development
     workspace:
-      profile: <your-cli-profile>
       host: https://<your-workspace>.cloud.databricks.com
     variables:
       catalog: <your_catalog>
