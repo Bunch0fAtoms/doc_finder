@@ -224,6 +224,20 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
     except (json.JSONDecodeError, ValueError):
         pass
 
+    # FMAPI PII masking can replace numeric filenames with <PHONE_NUMBER> etc.
+    # Fall back to the top search result's filename if the LLM filename looks masked.
+    if filename and ("<" in filename or filename == "null"):
+        filename = None
+    if not filename and all_results:
+        filename = all_results[0]["filename"]
+        score = all_results[0].get("score", score)
+    # Also scrub PII-masked filenames from the displayed response
+    if all_results and "<PHONE_NUMBER>" in content:
+        for r in all_results:
+            # Replace first occurrence of masked filename with the real one
+            content = content.replace("<PHONE_NUMBER>.pdf", r["filename"], 1)
+            content = content.replace("<PHONE_NUMBER>", r["filename"].replace(".pdf", ""), 1)
+
     # Trace ID for feedback API (must be MLflow trace id, same as MlflowClient.set_trace_tag)
     trace_id = None
     span = mlflow.get_current_active_span()
