@@ -7,16 +7,18 @@ No external dependencies — parses databricks.yml with PyYAML if available,
 falls back to a simple parser for the variables/targets sections.
 
 ``DATABRICKS_APP_NAME`` must match bundle variable ``app_name`` (see ``doc_finder_app.yml``:
-``name: ${var.app_name}``). It is computed from the git branch (sanitized, max 30 chars) and is used
-for Workspace Apps API lookups. Deploy with ``--var app_name=<same value>`` or the default
-``doc-finder`` will be used and will not match ``app.yaml``.
+``name: ${var.app_name}``). It is computed from the git branch (sanitized, max 30 chars) unless
+overridden with ``--name=<value>`` or ``APP_NAME`` env var. Deploy with
+``--var app_name=<same value>`` or the default ``doc-finder`` will be used and will not match
+``app.yaml``.
 
 ``MLFLOW_APP_NAME`` uses the same value as ``DATABRICKS_APP_NAME`` in this project.
 
 Usage (local):
   python scripts/configure.py databricks-demo
-  python scripts/configure.py --target=databricks-demo
+  python scripts/configure.py --target=databricks-demo --name=doc-finder
   python scripts/configure.py --target databricks-demo
+  APP_NAME=doc-finder python scripts/configure.py databricks-demo
   BUNDLE_TARGET=databricks-demo python scripts/configure.py
 
 Workspace / notebook runs often only pass ``-f /path/to/kernel.json`` — set the target explicitly:
@@ -156,6 +158,18 @@ def _sanitize_branch_for_name(branch: str, max_suffix_len: int = 18) -> str:
     return s or "unknown"
 
 
+def _parse_name_flag() -> Optional[str]:
+    """Check for explicit --name flag (overrides branch-based naming)."""
+    argv = sys.argv[1:]
+    for a in argv:
+        if a.startswith("--name="):
+            return a.split("=", 1)[1].strip()
+    for i, a in enumerate(argv):
+        if a == "--name" and i + 1 < len(argv):
+            return argv[i + 1].strip()
+    return os.environ.get("APP_NAME", "").strip() or None
+
+
 def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, str]:
     """
     Returns (databricks_app_name, mlflow_app_name).
@@ -163,10 +177,18 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
     Both match bundle ``var.app_name`` (``name: ${var.app_name}`` in ``doc_finder_app.yml``).
     Pass ``--var app_name=<this value>`` to ``databricks bundle deploy`` and ``bundle run doc_finder``.
 
-    Branch source priority: --branch flag > MLFLOW_BRANCH env > auto-detect (git/SDK/CLI).
-    Falls back to ``doc-finder-<target>`` if branch is unavailable.
+    Name resolution priority: --name flag > APP_NAME env > --branch flag > MLFLOW_BRANCH env >
+    auto-detect (git/SDK/CLI) > fallback ``doc-finder-<target>``.
     """
-    # Check explicit --branch flag or MLFLOW_BRANCH env var first
+    # 1. Explicit --name flag or APP_NAME env var — use as-is (no prefix)
+    explicit = _parse_name_flag()
+    if explicit:
+        app_name = explicit
+        if len(app_name) > 30:
+            app_name = app_name[:30].rstrip("-")
+        return app_name, app_name
+
+    # 2. Check explicit --branch flag or MLFLOW_BRANCH env var
     branch = None
     for arg in sys.argv[1:]:
         if arg.startswith("--branch="):
@@ -181,7 +203,7 @@ def _compute_app_names(project_root: str, target: Optional[str]) -> Tuple[str, s
     if not branch:
         branch = os.environ.get("MLFLOW_BRANCH", "").strip() or None
 
-    # Auto-detect from git/workspace if not explicitly provided
+    # 3. Auto-detect from git/workspace if not explicitly provided
     if not branch:
         branch = _git_branch(project_root)
 

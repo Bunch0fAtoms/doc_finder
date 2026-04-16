@@ -61,7 +61,7 @@ targets:
       warehouse_id: "4b9b953939869799"
       vs_endpoint_name: advance_rag_vs_endpoint
       vs_index_name: morgancatalog.doc_finder.doc_summaries_index
-      foundation_model: databricks-claude-sonnet-4-6
+      foundation_model: databricks-gemini-2-5-flash
       classifier_model: databricks-claude-haiku-4-5
       summarization_model: databricks-gemini-2-5-pro
       embedding_model: databricks-gte-large-en

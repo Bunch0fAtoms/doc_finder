@@ -31,17 +31,5 @@ resources:
             securable_type: VOLUME
             permission: READ_VOLUME
 
-        # doc_summaries table — keyword search queries
-        - name: doc-summaries-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.doc_summaries
-            securable_type: TABLE
-            permission: SELECT
-
-        # Vector Search index (UC table backing the index). `bundle validate` may warn on TABLE/SELECT;
-        # deploy still applies platform-supported UC grants for the app service principal.
-        - name: vs-index
-          uc_securable:
-            securable_full_name: ${var.vs_index_name}
-            securable_type: TABLE
-            permission: SELECT
+        # doc_summaries table and VS index — TABLE/SELECT not supported by DABs
+        # uc_securable. Grant these via scripts/grant_app_permissions.py after deploy.

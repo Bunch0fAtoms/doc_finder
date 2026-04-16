@@ -26,7 +26,7 @@ env:
     value: "raw_docs"
 
   - name: FOUNDATION_MODEL
-    value: "databricks-claude-sonnet-4-6"
+    value: "databricks-gemini-2-5-flash"
 
   - name: CLASSIFIER_MODEL
     value: "databricks-claude-haiku-4-5"
@@ -35,7 +35,7 @@ env:
     value: "/Shared/doc-finder"
 
   - name: DATABRICKS_APP_NAME
-    value: "doc-finder-multi-workspace-de"
+    value: "doc-finder"
 
   - name: MLFLOW_APP_NAME
-    value: "doc-finder-multi-workspace-de"
+    value: "doc-finder"

@@ -30,10 +30,13 @@ All environment-specific values are defined as variables in `databricks.yml` and
 ## Deployment
 
 ```bash
-python scripts/configure.py databricks-demo   # Prints app_name; updates app.yaml
-APP_NAME=<value from configure output or app.yaml DATABRICKS_APP_NAME>
-databricks bundle deploy -t databricks-demo --var app_name=$APP_NAME
-databricks bundle run doc_finder -t databricks-demo --var app_name=$APP_NAME
+python scripts/configure.py databricks-demo --name=doc-finder   # Generate app.yaml
+databricks bundle deploy -t databricks-demo --var app_name=doc-finder
+python src/pipeline/04_grant_app_permissions.py \
+  --catalog=morgancatalog --schema=doc_finder \
+  --warehouse-id=4b9b953939869799 --volume=raw_docs \
+  --app-name=doc-finder                                          # TABLE/SELECT grants
+databricks bundle run doc_finder -t databricks-demo --var app_name=doc-finder
 ```
 
 ## Conventions
@@ -42,8 +45,8 @@ databricks bundle run doc_finder -t databricks-demo --var app_name=$APP_NAME
 - All app source lives in `src/app/` — this is what DABs deploys.
 - Pipeline scripts in `src/pipeline/` run as DABs jobs or locally.
 - Use the single-call agent pattern (search first, then one LLM call) to stay under the 60s app proxy timeout.
-- App permissions for warehouse, models, UC volume/table, and VS index are declared in `resources/doc_finder_app.yml` (deploy-time). Use `04_grant_app_permissions.py` only if you add resources outside the bundle.
-- Run `scripts/configure.py <target>` before deploying to a new target.
+- App permissions for warehouse, models, and UC volume are declared in `resources/doc_finder_app.yml` (deploy-time). TABLE/SELECT grants (doc_summaries, VS index) and USE_CATALOG/USE_SCHEMA must be applied via `04_grant_app_permissions.py` after first deploy — DABs `uc_securable` only supports VOLUME types.
+- Run `scripts/configure.py <target> --name=<app-name>` before deploying to a new target.
 
 ## Key Decisions
 
