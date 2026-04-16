@@ -49,6 +49,19 @@ resources:
               - --embedding-model=${var.embedding_model}
           environment_key: pipeline_env
 
+        - task_key: grant_app_permissions
+          depends_on:
+            - task_key: create_vs_index
+          spark_python_task:
+            python_file: ../src/pipeline/04_grant_app_permissions.py
+            parameters:
+              - --catalog=${var.catalog}
+              - --schema=${var.schema}
+              - --warehouse-id=${var.warehouse_id}
+              - --volume=${var.volume_name}
+              - --app-name=${var.app_name}
+          environment_key: pipeline_env
+
       environments:
         - environment_key: pipeline_env
           spec:

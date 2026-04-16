@@ -176,40 +176,31 @@ You can also set it via the `APP_NAME` environment variable.
 Run `configure.py` first, then use the `app_name` it prints for all subsequent commands.
 
 ```bash
-# 1. Generate app.yaml (use --name for explicit app name, or let it derive from git branch)
+# 1. Generate app.yaml + create catalog/schema/volume if needed
 python scripts/configure.py databricks-demo --name=doc-finder
 
 # 2. Deploy bundle resources + upload app source
 databricks bundle deploy -t databricks-demo --var app_name=doc-finder
 
-# 3. Grant table permissions (required — DABs can't grant TABLE/SELECT via uc_securable)
-python src/pipeline/04_grant_app_permissions.py \
-  --catalog=morgancatalog --schema=doc_finder \
-  --warehouse-id=4b9b953939869799 --volume=raw_docs \
-  --app-name=doc-finder
+# 3. Run the data pipeline (Upload → Parse → Summarize → Index → Grant permissions)
+databricks bundle run data_pipeline -t databricks-demo --var app_name=doc-finder
 
-# 4. Run the data pipeline (Upload → Parse → Summarize → Index)
-databricks bundle run data_pipeline -t databricks-demo
-
-# 5. Start the app
+# 4. Start the app
 databricks bundle run doc_finder -t databricks-demo --var app_name=doc-finder
 ```
 
 ### 3. Permissions
 
-Most permissions are declared in `doc_finder_app.yml` and granted automatically at deploy time:
-
 | Resource | Permission | Granted by | Purpose |
 |----------|-----------|------------|---------|
-| SQL Warehouse | CAN_USE | DABs (auto) | Keyword search queries |
-| Sonnet endpoint | CAN_QUERY | DABs (auto) | Response generation |
-| Haiku endpoint | CAN_QUERY | DABs (auto) | Query classification |
-| UC Volume (raw_docs) | READ_VOLUME | DABs (auto) | PDF serving |
-| doc_summaries table | SELECT | **Manual** (grant script) | Keyword search data |
-| VS index table | SELECT | **Manual** (grant script) | Semantic / hybrid search |
-| USE_CATALOG / USE_SCHEMA | — | **Manual** (grant script) | Required for all UC access |
+| SQL Warehouse | CAN_USE | DABs deploy (auto) | Keyword search queries |
+| Serving endpoints | CAN_QUERY | DABs deploy (auto) | LLM response + classification |
+| UC Volume (raw_docs) | READ_VOLUME | DABs deploy (auto) | PDF serving |
+| USE_CATALOG / USE_SCHEMA | — | Pipeline (auto) | Required for all UC access |
+| doc_summaries table | SELECT | Pipeline (auto) | Keyword search data |
+| VS index table | SELECT | Pipeline (auto) | Semantic / hybrid search |
 
-**Note:** DABs `uc_securable` only supports VOLUME types. TABLE/SELECT grants and USE_CATALOG/USE_SCHEMA must be applied via `04_grant_app_permissions.py` after the first deploy.
+All permissions are handled automatically — DABs grants serving endpoint and volume access at deploy time, and the data pipeline grants table/index permissions as its final step.
 
 ## Deploying to a New Workspace
 
@@ -258,28 +249,15 @@ databricks bundle deploy -t my-workspace --var app_name=doc-finder
 
 This uploads the app source to the workspace and creates the app resource. DABs automatically grants the app service principal access to the SQL warehouse, serving endpoints, and UC volume.
 
-### Step 4: Grant table permissions (one-time after first deploy)
+### Step 4: Run the data pipeline
 
-DABs cannot grant TABLE/SELECT permissions — only VOLUME types are supported. Run the grant script to give the app service principal access to the doc_summaries table, VS index, and parent catalog/schema:
-
-```bash
-python src/pipeline/04_grant_app_permissions.py \
-  --catalog=<your_catalog> \
-  --schema=doc_finder \
-  --warehouse-id=<your_warehouse_id> \
-  --volume=raw_docs \
-  --app-name=doc-finder
-```
-
-### Step 5: Run the data pipeline
-
-This uploads PDFs from `raw_docs/`, parses them, generates summaries, and creates the Vector Search index:
+This uploads PDFs from `raw_docs/`, parses them, generates summaries, creates the Vector Search index, and grants the app service principal access to tables and indexes:
 
 ```bash
-databricks bundle run data_pipeline -t my-workspace
+databricks bundle run data_pipeline -t my-workspace --var app_name=doc-finder
 ```
 
-### Step 6: Start the app
+### Step 5: Start the app
 
 ```bash
 databricks bundle run doc_finder -t my-workspace --var app_name=doc-finder
@@ -290,7 +268,7 @@ The app URL will be printed when the command completes.
 ### Notes
 
 - **Foundation model choice:** If the workspace FMAPI guardrail blocks medical content (we saw this on the shared e2-demo workspace), switch `foundation_model` to `databricks-gemini-2-5-flash`.
-- **Re-deploying:** After the first deploy, you only need steps 2-3 and 6 for code changes. Step 4 (grants) and step 5 (pipeline) are one-time unless you change the catalog/schema or add new documents.
+- **Re-deploying:** After the first deploy, you only need steps 2-3 and 5 for code changes. Step 4 (pipeline) is one-time unless you add new documents.
 
 ## Adding New Documents
 
