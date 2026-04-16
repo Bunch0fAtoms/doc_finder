@@ -599,10 +599,11 @@ def main():
     workspace_cfg = _get_target_workspace_config(project_root, target)
     _ensure_catalog_and_schema(variables, workspace_cfg)
 
+    var_flag = "" if databricks_app_name == "doc-finder" else f" --var app_name={databricks_app_name}"
     print(f"\nDeploy with:")
-    print(f"  databricks bundle deploy -t {target} --var app_name={databricks_app_name}")
-    print(f"  databricks bundle run data_pipeline -t {target}")
-    print(f"  databricks bundle run doc_finder -t {target} --var app_name={databricks_app_name}")
+    print(f"  databricks bundle deploy -t {target}{var_flag}")
+    print(f"  databricks bundle run data_pipeline -t {target}{var_flag}")
+    print(f"  databricks bundle run doc_finder -t {target}{var_flag}")
 
 
 if __name__ == "__main__":
