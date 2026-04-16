@@ -71,7 +71,6 @@ targets:
   databricks-azure-fe:
     mode: development
     workspace:
-      profile: azure-fe
       host: https://adb-984752964297111.11.azuredatabricks.net
     variables:
       catalog: morgancatalog
