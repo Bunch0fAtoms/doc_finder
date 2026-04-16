@@ -127,6 +127,7 @@ def _git_branch(project_root: str) -> Optional[str]:
 
     # 3. Databricks CLI — works in workspace web terminal
     try:
+        import json as _json
         # Get the repo path relative to /Workspace (CLI uses /Users/... not /Workspace/Users/...)
         repo_path = project_root.replace("/Workspace", "", 1)
         out = subprocess.run(
@@ -136,12 +137,11 @@ def _git_branch(project_root: str) -> Optional[str]:
             timeout=15,
         )
         if out.returncode == 0:
-            import json
-            data = json.loads(out.stdout)
+            data = _json.loads(out.stdout)
             branch = data.get("branch")
             if branch:
                 return branch
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+    except (FileNotFoundError, OSError, ValueError):
         pass
 
     return None
