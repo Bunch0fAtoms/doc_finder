@@ -68,6 +68,24 @@ targets:
       volume_name: raw_docs
       skip_upload: "false"
 
+  databricks-azure-fe:
+    mode: development
+    workspace:
+      profile: azure-fe
+      host: https://adb-984752964297111.11.azuredatabricks.net
+    variables:
+      catalog: morgancatalog
+      schema: doc_finder
+      warehouse_id: "148ccb90800933a1"
+      vs_endpoint_name: dbdemos_vs_endpoint
+      vs_index_name: morgancatalog.doc_finder.doc_summaries_index
+      foundation_model: databricks-gemini-2-5-flash
+      classifier_model: databricks-claude-haiku-4-5
+      summarization_model: databricks-gemini-2-5-pro
+      embedding_model: databricks-gte-large-en
+      volume_name: raw_docs
+      skip_upload: "false"
+
   integra-dev:
     mode: development
     workspace:
