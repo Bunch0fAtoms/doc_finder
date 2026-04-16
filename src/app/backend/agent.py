@@ -42,9 +42,10 @@ You will also receive a query analysis explaining how the search was interpreted
 
 Based on the combined results:
 1. Recommend the best matching document
-2. Explain briefly why it matches their request
-3. If keyword matches exist, prioritize those for identifier-based queries
-4. Include the exact filename in your response
+2. Provide a detailed explanation of why this document matches, including key topics, products, or regulatory information it contains
+3. Explain how the match was found — tell the user whether it was found via keyword search (exact text match), semantic search (topic similarity), or both
+4. If keyword matches exist, prioritize those for identifier-based queries
+5. Include the exact filename in your response
 
 If the user asks to refine or says "not that one", look at the search results for alternatives.
 
