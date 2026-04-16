@@ -320,10 +320,13 @@ def _load_yaml(path):
                 if stripped == "variables:":
                     in_target_vars = True
                     continue
-                # Parse host from workspace section
+                # Parse host and profile from workspace section
                 m_host = re.match(r'^\s+host:\s*"?([^"]*)"?', line)
                 if m_host and not in_target_vars:
                     result["targets"][current_target]["host"] = m_host.group(1).strip().rstrip("/")
+                m_profile = re.match(r'^\s+profile:\s*"?([^"]*)"?', line)
+                if m_profile and not in_target_vars:
+                    result["targets"][current_target]["profile"] = m_profile.group(1).strip()
                 if in_target_vars:
                     m = re.match(r'^\s+(\w+):\s*"?([^"]*)"?', line)
                     if m:
@@ -487,6 +490,76 @@ def _parse_target(project_root: str) -> Tuple[Optional[str], str]:
     return (None, "")
 
 
+def _get_target_workspace_config(project_root: str, target: str) -> dict:
+    """Return {'host': ..., 'profile': ...} for a target from databricks.yml."""
+    bundle_path = os.path.join(project_root, "databricks.yml")
+    bundle = _load_yaml(bundle_path)
+    t = bundle.get("targets", {}).get(target, {})
+    return {"host": t.get("host", ""), "profile": t.get("profile", "")}
+
+
+def _ensure_catalog_and_schema(variables: dict, workspace_cfg: dict) -> None:
+    """Create catalog and schema if they don't exist. Uses databricks-sdk or CLI."""
+    catalog = variables.get("catalog", "")
+    schema = variables.get("schema", "")
+    warehouse_id = variables.get("warehouse_id", "")
+    if not catalog or not schema or not warehouse_id:
+        print("  Skipping catalog/schema creation: missing catalog, schema, or warehouse_id")
+        return
+
+    profile = workspace_cfg.get("profile", "")
+    host = workspace_cfg.get("host", "")
+    statements = [
+        f"CREATE CATALOG IF NOT EXISTS {catalog}",
+        f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}",
+    ]
+
+    # Try databricks-sdk first (works in workspace and locally)
+    try:
+        from databricks.sdk import WorkspaceClient
+        kwargs = {"profile": profile} if profile else {"host": host}
+        w = WorkspaceClient(**kwargs)
+        for stmt in statements:
+            print(f"  Running: {stmt}")
+            w.statement_execution.execute_statement(
+                warehouse_id=warehouse_id,
+                statement=stmt,
+                wait_timeout="30s",
+            )
+        print("  Catalog and schema ready.")
+        return
+    except ImportError:
+        pass
+    except Exception as e:
+        # If it's an auth or connection error, fall through to CLI
+        print(f"  SDK failed: {e}")
+
+    # Fallback: databricks CLI
+    try:
+        import json as _json
+        for stmt in statements:
+            print(f"  Running via CLI: {stmt}")
+            cli_args = ["databricks", "api", "post",
+                        "/api/2.0/sql/statements",
+                        "--json", _json.dumps({
+                            "warehouse_id": warehouse_id,
+                            "statement": stmt,
+                            "wait_timeout": "30s",
+                        })]
+            if profile:
+                cli_args.extend(["--profile", profile])
+            result = subprocess.run(cli_args, capture_output=True, text=True, timeout=60)
+            if result.returncode != 0:
+                raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+        print("  Catalog and schema ready.")
+        return
+    except Exception as e:
+        print(f"  Warning: could not create catalog/schema: {e}")
+        print(f"  Create them manually before deploying:")
+        print(f"    CREATE CATALOG IF NOT EXISTS {catalog};")
+        print(f"    CREATE SCHEMA IF NOT EXISTS {catalog}.{schema};")
+
+
 def main():
     project_root = _find_project_root()
     target, target_src = _parse_target(project_root)
@@ -515,6 +588,12 @@ def main():
     print(f"  foundation_model: {variables.get('foundation_model')}")
     print(f"  databricks_app:   {databricks_app_name}")
     print(f"  mlflow_app:       {mlflow_app_name}  (git branch label; may differ from databricks_app)")
+
+    # Ensure catalog and schema exist before bundle deploy
+    print(f"\nEnsuring catalog and schema exist...")
+    workspace_cfg = _get_target_workspace_config(project_root, target)
+    _ensure_catalog_and_schema(variables, workspace_cfg)
+
     print(f"\nDeploy with:")
     print(f"  databricks bundle deploy -t {target} --var app_name={databricks_app_name}")
     print(f"  databricks bundle run data_pipeline -t {target}")

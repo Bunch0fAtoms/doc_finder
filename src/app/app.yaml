@@ -11,7 +11,7 @@ env:
     valueFrom: sql-warehouse
 
   - name: VS_ENDPOINT_NAME
-    value: "dbdemos_vs_endpoint"
+    value: "advance_rag_vs_endpoint"
 
   - name: VS_INDEX_NAME
     value: "morgancatalog.doc_finder.doc_summaries_index"
