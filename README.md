@@ -213,12 +213,12 @@ Most permissions are declared in `doc_finder_app.yml` and granted automatically 
 
 ## Deploying to a New Workspace
 
-### Prerequisites (create these manually in the target workspace)
+### Prerequisites
 
-| Resource | Why | Where to find the ID |
-|----------|-----|----------------------|
-| **SQL Warehouse** | Used by the pipeline (parsing, summarization) and the app (keyword search) | SQL Warehouses page → warehouse details → ID in URL or settings |
-| **Databricks CLI profile** | Authenticates CLI commands to the workspace | `databricks auth login --host https://<workspace>.cloud.databricks.com --profile <name>` |
+| Resource | Why | How |
+|----------|-----|-----|
+| **SQL Warehouse** | Used by the pipeline (parsing, summarization) and the app (keyword search) | Create in workspace UI; copy the ID from the warehouse settings page |
+| **Databricks CLI profile** | The `profile` field in `databricks.yml` must match an authenticated profile in `~/.databrickscfg` | `databricks auth login --host https://<workspace>.cloud.databricks.com --profile <name>` |
 
 Everything else (catalog, schema, volume, tables, Vector Search endpoint + index) is created automatically by the data pipeline.
 
