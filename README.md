@@ -213,12 +213,85 @@ Most permissions are declared in `doc_finder_app.yml` and granted automatically 
 
 ## Deploying to a New Workspace
 
-1. Add a new target in `databricks.yml` with the workspace profile and variable overrides
-2. `python scripts/configure.py <target> --name=<app-name>` to generate `src/app/app.yaml`
-3. `databricks bundle deploy -t <target> --var app_name=<app-name>`
-4. `python src/pipeline/04_grant_app_permissions.py --catalog=<cat> --schema=doc_finder --warehouse-id=<wh> --volume=raw_docs --app-name=<app-name>`
-5. `databricks bundle run data_pipeline -t <target>`
-6. `databricks bundle run doc_finder -t <target> --var app_name=<app-name>`
+### Prerequisites (create these manually in the target workspace)
+
+| Resource | Why | Where to find the ID |
+|----------|-----|----------------------|
+| **SQL Warehouse** | Used by the pipeline (parsing, summarization) and the app (keyword search) | SQL Warehouses page → warehouse details → ID in URL or settings |
+| **Databricks CLI profile** | Authenticates CLI commands to the workspace | `databricks auth login --host https://<workspace>.cloud.databricks.com --profile <name>` |
+
+Everything else (catalog, schema, volume, tables, Vector Search endpoint + index) is created automatically by the data pipeline.
+
+### Step 1: Add a target in `databricks.yml`
+
+Copy the `integra-dev` block and fill in your workspace values:
+
+```yaml
+  my-workspace:
+    mode: development
+    workspace:
+      profile: <your-cli-profile>            # must match databricks auth login --profile
+      host: https://<your-workspace>.cloud.databricks.com
+    variables:
+      catalog: <your_catalog>                # Unity Catalog catalog (must exist or be creatable)
+      schema: doc_finder
+      warehouse_id: "<your_warehouse_id>"    # from the prerequisite step above
+      vs_endpoint_name: doc_finder_vs_endpoint
+      vs_index_name: <your_catalog>.doc_finder.doc_summaries_index
+      foundation_model: databricks-claude-sonnet-4-6   # or databricks-gemini-2-5-flash
+      classifier_model: databricks-claude-haiku-4-5
+      summarization_model: databricks-gemini-2-5-pro
+      embedding_model: databricks-gte-large-en
+      volume_name: raw_docs
+```
+
+### Step 2: Generate app config
+
+```bash
+python scripts/configure.py my-workspace --name=doc-finder
+```
+
+### Step 3: Deploy bundle
+
+```bash
+databricks bundle deploy -t my-workspace --var app_name=doc-finder
+```
+
+This uploads the app source to the workspace and creates the app resource. DABs automatically grants the app service principal access to the SQL warehouse, serving endpoints, and UC volume.
+
+### Step 4: Grant table permissions (one-time after first deploy)
+
+DABs cannot grant TABLE/SELECT permissions — only VOLUME types are supported. Run the grant script to give the app service principal access to the doc_summaries table, VS index, and parent catalog/schema:
+
+```bash
+python src/pipeline/04_grant_app_permissions.py \
+  --catalog=<your_catalog> \
+  --schema=doc_finder \
+  --warehouse-id=<your_warehouse_id> \
+  --volume=raw_docs \
+  --app-name=doc-finder
+```
+
+### Step 5: Run the data pipeline
+
+This uploads PDFs from `raw_docs/`, parses them, generates summaries, and creates the Vector Search index:
+
+```bash
+databricks bundle run data_pipeline -t my-workspace
+```
+
+### Step 6: Start the app
+
+```bash
+databricks bundle run doc_finder -t my-workspace --var app_name=doc-finder
+```
+
+The app URL will be printed when the command completes.
+
+### Notes
+
+- **Foundation model choice:** If the workspace FMAPI guardrail blocks medical content (we saw this on the shared e2-demo workspace), switch `foundation_model` to `databricks-gemini-2-5-flash`.
+- **Re-deploying:** After the first deploy, you only need steps 2-3 and 6 for code changes. Step 4 (grants) and step 5 (pipeline) are one-time unless you change the catalog/schema or add new documents.
 
 ## Adding New Documents
 
