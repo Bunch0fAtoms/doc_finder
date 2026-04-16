@@ -501,7 +501,7 @@ def _get_target_workspace_config(project_root: str, target: str) -> dict:
 
 
 def _ensure_catalog_and_schema(variables: dict, workspace_cfg: dict) -> None:
-    """Create catalog and schema if they don't exist. Uses databricks-sdk or CLI."""
+    """Create catalog, schema, and volume if they don't exist. Uses databricks-sdk or CLI."""
     catalog = variables.get("catalog", "")
     schema = variables.get("schema", "")
     warehouse_id = variables.get("warehouse_id", "")
@@ -511,9 +511,11 @@ def _ensure_catalog_and_schema(variables: dict, workspace_cfg: dict) -> None:
 
     profile = workspace_cfg.get("profile", "")
     host = workspace_cfg.get("host", "")
+    volume = variables.get("volume_name", "raw_docs")
     statements = [
         f"CREATE CATALOG IF NOT EXISTS {catalog}",
         f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}",
+        f"CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.{volume}",
     ]
 
     # Try databricks-sdk first (works in workspace and locally)
@@ -528,7 +530,7 @@ def _ensure_catalog_and_schema(variables: dict, workspace_cfg: dict) -> None:
                 statement=stmt,
                 wait_timeout="30s",
             )
-        print("  Catalog and schema ready.")
+        print("  Catalog, schema, and volume ready.")
         return
     except ImportError:
         pass
@@ -553,13 +555,14 @@ def _ensure_catalog_and_schema(variables: dict, workspace_cfg: dict) -> None:
             result = subprocess.run(cli_args, capture_output=True, text=True, timeout=60)
             if result.returncode != 0:
                 raise RuntimeError(result.stderr.strip() or result.stdout.strip())
-        print("  Catalog and schema ready.")
+        print("  Catalog, schema, and volume ready.")
         return
     except Exception as e:
-        print(f"  Warning: could not create catalog/schema: {e}")
+        print(f"  Warning: could not create catalog/schema/volume: {e}")
         print(f"  Create them manually before deploying:")
         print(f"    CREATE CATALOG IF NOT EXISTS {catalog};")
         print(f"    CREATE SCHEMA IF NOT EXISTS {catalog}.{schema};")
+        print(f"    CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.{volume};")
 
 
 def main():
