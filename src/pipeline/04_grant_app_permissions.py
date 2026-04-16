@@ -35,9 +35,12 @@ def get_connection():
 
 def get_app_sp_id(app_name):
     """Look up the service principal client ID for a Databricks App."""
-    w = WorkspaceClient()
-    app = w.apps.get(app_name)
-    sp_id = app.service_principal_client_id
+    import requests
+    sdk_cfg = Config()
+    headers = sdk_cfg.authenticate()
+    resp = requests.get(f"{sdk_cfg.host}/api/2.0/apps/{app_name}", headers=headers)
+    resp.raise_for_status()
+    sp_id = resp.json()["service_principal_client_id"]
     print(f"App '{app_name}' service principal: {sp_id}")
     return sp_id
 
