@@ -120,6 +120,27 @@ def _deduplicate_results(results: list[dict]) -> list[dict]:
     return list(seen.values())
 
 
+def _guardrail_fallback(results: list[dict], reasoning: str) -> str:
+    """Build a response from search results when the LLM guardrail blocks the call."""
+    if not results:
+        return 'No matching documents found.\n\n```json\n{"filename": null, "score": null}\n```'
+    top = results[0]
+    fname = top["filename"]
+    score = top.get("score", 0)
+    summary = top.get("summary", "")
+    # Truncate summary for the response
+    if len(summary) > 300:
+        summary = summary[:300].rsplit(" ", 1)[0] + "..."
+    lines = [f"Based on your search, the best match is **{fname}** (score: {score:.2f})."]
+    if summary:
+        lines.append(f"\n{summary}")
+    if len(results) > 1:
+        others = ", ".join(r["filename"] for r in results[1:3])
+        lines.append(f"\nOther potential matches: {others}")
+    lines.append(f'\n```json\n{{"filename": "{fname}", "score": {score}}}\n```')
+    return "\n".join(lines)
+
+
 @mlflow.trace(name="chat", span_type=SpanType.AGENT)
 def chat(message: str, history: list[dict], session_id: str | None = None) -> dict:
     """
@@ -174,13 +195,20 @@ def chat(message: str, history: list[dict], session_id: str | None = None) -> di
         "content": f"{message}\n\n---\nSearch results from document library:\n{search_context}",
     })
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        max_tokens=1024,
-    )
-
-    content = response.choices[0].message.content or ""
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            max_tokens=1024,
+        )
+        content = response.choices[0].message.content or ""
+    except Exception as e:
+        err = str(e)
+        if "guardrail" in err.lower() or "input_guardrail_triggered" in err:
+            logger.warning("FMAPI guardrail triggered, falling back to search results")
+            content = _guardrail_fallback(all_results, reasoning)
+        else:
+            raise
 
     # Extract structured metadata from response
     filename = None
